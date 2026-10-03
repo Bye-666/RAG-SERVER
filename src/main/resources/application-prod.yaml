@@ -1,0 +1,112 @@
+# ========================================
+# RAG-SERVER 生产环境配置
+# ========================================
+
+# ========================================
+# 服务器配置
+# ========================================
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-exception: false
+    include-stacktrace: never
+    include-message: never
+  tomcat:
+    connection-timeout: 20000
+    threads:
+      max: 200
+      min-spare: 10
+
+# ========================================
+# Spring配置
+# ========================================
+spring:
+  # 数据源配置（SQLite）
+  datasource:
+    url: jdbc:sqlite:./data/db/rag_server_prod.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+# ========================================
+# 日志配置
+# ========================================
+logging:
+  level:
+    com.ragserver: INFO
+    org.springframework.ai: WARN
+    org.springframework: WARN
+    org.hibernate: WARN
+  file:
+    name: ./logs/rag-server-prod.log
+    max-size: 50MB
+    max-history: 90
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ========================================
+# Actuator配置
+# ========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    export:
+      prometheus:
+        enabled: false
+
+# ========================================
+# Milvus配置
+# ========================================
+milvus:
+  uri: ${MILVUS_URI:http://milvus-server:19530}
+  collection-name: rag_knowledge_hub
+  auto-create-collection: false
+
+# ========================================
+# RAG业务配置
+# ========================================
+rag:
+  retrieval:
+    top-k-dense: 20
+    top-k-sparse: 20
+    top-k-final: 10
+    enable-rerank: true
+  transformer:
+    chunk-refiner:
+      enabled: true
+      use-llm: false
+    metadata-enricher:
+      enabled: true
+      use-llm: false
+    image-captioner:
+      enabled: false

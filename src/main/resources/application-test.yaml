@@ -1,0 +1,108 @@
+# ========================================
+# RAG-SERVER 测试环境配置
+# ========================================
+
+# ========================================
+# 服务器配置
+# ========================================
+server:
+  port: 0  # 随机端口
+
+# ========================================
+# Spring配置
+# ========================================
+spring:
+  # 数据源配置（H2内存数据库）
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  # AI配置（测试环境Mock）
+  ai:
+    dashscope:
+      api-key: test-api-key
+      base-url: http://localhost:8080/mock-dashscope
+      model: qwen-max
+      qps: 100
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # 测试配置
+  test:
+    mockmvc:
+      print: true
+
+# ========================================
+# 日志配置
+# ========================================
+logging:
+  level:
+    com.ragserver: DEBUG
+    org.springframework.ai: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.testcontainers: INFO
+
+# ========================================
+# Actuator配置
+# ========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# ========================================
+# Milvus配置
+# ========================================
+milvus:
+  uri: http://localhost:19530
+  collection-name: rag_knowledge_hub_test
+  auto-create-collection: true
+
+# ========================================
+# RAG业务配置
+# ========================================
+rag:
+  chunking:
+    chunk-size: 256
+    chunk-overlap: 64
+  retrieval:
+    top-k-dense: 5
+    top-k-sparse: 5
+    top-k-final: 3
+    enable-rerank: false
+  transformer:
+    chunk-refiner:
+      enabled: true
+      use-llm: false
+    metadata-enricher:
+      enabled: true
+      use-llm: false
+    image-captioner:
+      enabled: false
+
+# ========================================
+# 文件路径配置（使用临时目录）
+# ========================================
+paths:
+  data-dir: ${java.io.tmpdir}/rag-server-test/data
+  images-dir: ${java.io.tmpdir}/rag-server-test/images
+  documents-dir: ${java.io.tmpdir}/rag-server-test/documents
+  logs-dir: ${java.io.tmpdir}/rag-server-test/logs

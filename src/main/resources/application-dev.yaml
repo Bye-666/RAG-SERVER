@@ -1,0 +1,107 @@
+# ========================================
+# RAG-SERVER 开发环境配置
+# ========================================
+
+# ========================================
+# 服务器配置
+# ========================================
+server:
+  port: 8080
+  error:
+    include-exception: true
+    include-stacktrace: always
+    include-message: always
+
+# ========================================
+# Spring配置
+# ========================================
+spring:
+  # 数据源配置（H2数据库）
+  datasource:
+    url: jdbc:h2:file:./data/db/rag_server_dev
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # H2控制台
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+  # 开发工具
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+# ========================================
+# 日志配置
+# ========================================
+logging:
+  level:
+    com.ragserver: DEBUG
+    org.springframework.ai: DEBUG
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: ./logs/rag-server-dev.log
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr([%thread]){magenta} %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
+
+# ========================================
+# Actuator配置
+# ========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# ========================================
+# Milvus配置
+# ========================================
+milvus:
+  uri: http://localhost:19530
+  collection-name: rag_knowledge_hub_dev
+  auto-create-collection: true
+
+# ========================================
+# RAG业务配置
+# ========================================
+rag:
+  retrieval:
+    top-k-dense: 10
+    top-k-sparse: 10
+    top-k-final: 5
+    enable-rerank: false
+  transformer:
+    chunk-refiner:
+      enabled: true
+      use-llm: false
+    metadata-enricher:
+      enabled: true
+      use-llm: false
+    image-captioner:
+      enabled: false
