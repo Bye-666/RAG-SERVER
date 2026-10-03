@@ -1,0 +1,553 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-10-03 10:58:44",
+  "currentPhase": "A",
+  "currentTask": "A1",
+  "tasks": {
+    "A1": {
+      "name": "Maven项目初始化",
+      "phase": "A",
+      "priority": "P0",
+      "status": "completed",
+      "startedAt": "2026-10-03 10:45:25",
+      "completedAt": "2026-10-03 10:58:44",
+      "files": [
+        "pom.xml",
+        "src/main/java/com/ragserver/RagServerApplication.java",
+        "src/main/resources/application.yaml",
+        ".gitignore",
+        "data/.gitkeep",
+        "README.md"
+      ],
+      "notes": "Maven项目初始化完成，Spring Boot 3.2.1编译通过，应用启动成功，健康检查返回UP。暂时注释了Spring AI等后续阶段的依赖。"
+    },
+    "A2": {
+      "name": "配置管理体系",
+      "phase": "A",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "A3": {
+      "name": "数据库初始化",
+      "phase": "A",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "B1": {
+      "name": "DashScopeChatClient实现",
+      "phase": "B",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "B2": {
+      "name": "DashScopeEmbeddingClient实现",
+      "phase": "B",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "B3": {
+      "name": "API限流与重试",
+      "phase": "B",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "B4": {
+      "name": "DashScope Vision LLM",
+      "phase": "B",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "C1": {
+      "name": "Milvus连接与Schema创建",
+      "phase": "C",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "C2": {
+      "name": "Dense检索实现",
+      "phase": "C",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "C3": {
+      "name": "Sparse检索实现(BM25)",
+      "phase": "C",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "C4": {
+      "name": "RRF融合实现",
+      "phase": "C",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "C5": {
+      "name": "批量Upsert方法",
+      "phase": "C",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D1": {
+      "name": "PDF加载",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D2": {
+      "name": "RecursiveSplitter实现",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D3": {
+      "name": "ChunkRefiner实现",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D4": {
+      "name": "MetadataEnricher实现",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D5": {
+      "name": "批量Embedding编码",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D6": {
+      "name": "Pipeline编排",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D7": {
+      "name": "ImageCaptioner实现",
+      "phase": "D",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "D8": {
+      "name": "增量摄取与去重",
+      "phase": "D",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E1": {
+      "name": "HybridRetriever实现",
+      "phase": "E",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E2": {
+      "name": "Reranker实现",
+      "phase": "E",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E3": {
+      "name": "Prompt模板管理",
+      "phase": "E",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E4": {
+      "name": "RagService核心实现",
+      "phase": "E",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E5": {
+      "name": "Citation生成",
+      "phase": "E",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E6": {
+      "name": "流式输出支持",
+      "phase": "E",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "E7": {
+      "name": "缓存策略",
+      "phase": "E",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "F1": {
+      "name": "MCP Server初始化",
+      "phase": "F",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "F2": {
+      "name": "query_knowledge_hub工具",
+      "phase": "F",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "F3": {
+      "name": "list_collections工具",
+      "phase": "F",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "F4": {
+      "name": "get_document_summary工具",
+      "phase": "F",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "F5": {
+      "name": "MCP异常处理",
+      "phase": "F",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "G1": {
+      "name": "DocumentService实现",
+      "phase": "G",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "G2": {
+      "name": "ImageStorage实现",
+      "phase": "G",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "G3": {
+      "name": "IngestionHistoryRepository",
+      "phase": "G",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "G4": {
+      "name": "批量删除功能",
+      "phase": "G",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "G5": {
+      "name": "文档统计API",
+      "phase": "G",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "G6": {
+      "name": "搜索历史记录",
+      "phase": "G",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "H1": {
+      "name": "REST API设计",
+      "phase": "H",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "H2": {
+      "name": "前端页面骨架",
+      "phase": "H",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "H3": {
+      "name": "文档浏览器",
+      "phase": "H",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "H4": {
+      "name": "Ingestion管理",
+      "phase": "H",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "H5": {
+      "name": "Query测试页面",
+      "phase": "H",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "H6": {
+      "name": "系统总览页面",
+      "phase": "H",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "I1": {
+      "name": "黄金测试集构建",
+      "phase": "I",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "I2": {
+      "name": "评估指标实现",
+      "phase": "I",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "I3": {
+      "name": "EvaluationService实现",
+      "phase": "I",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "I4": {
+      "name": "回归测试基线",
+      "phase": "I",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "I5": {
+      "name": "性能优化",
+      "phase": "I",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "J1": {
+      "name": "完整摄取测试",
+      "phase": "J",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "J2": {
+      "name": "完整RAG查询测试",
+      "phase": "J",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "J3": {
+      "name": "MCP兼容性测试",
+      "phase": "J",
+      "priority": "P0",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    },
+    "J4": {
+      "name": "文档与示例",
+      "phase": "J",
+      "priority": "P1",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "files": [],
+      "notes": ""
+    }
+  },
+  "statistics": {
+    "total": 53,
+    "completed": 1,
+    "inProgress": 0,
+    "pending": 52,
+    "blocked": 0,
+    "skipped": 0
+  }
+}

@@ -1,0 +1,246 @@
+# ========================================
+# RAG-SERVER 应用配置文件
+# ========================================
+#
+# 这是通用配置文件，所有环境共享的配置项都在这里定义。
+# 环境特定配置请使用：
+#   - application-dev.yaml（开发环境）
+#   - application-prod.yaml（生产环境）
+#   - application-test.yaml（测试环境）
+#
+# 配置项命名规范：
+#   - 使用小写字母和连字符（kebab-case）
+#   - 例如：spring.application.name（不是 springApplicationName）
+
+# ========================================
+# Spring 核心配置
+# ========================================
+spring:
+  # 应用程序名称
+  application:
+    name: rag-server
+
+  # 激活的配置文件（默认为dev，可通过环境变量覆盖）
+  # 启动时可指定：--spring.profiles.active=prod
+  profiles:
+    active: dev
+
+  # ========================================
+  # Spring AI 配置
+  # ========================================
+  # 注意：这些配置项将在阶段B（DashScope集成）中实际使用
+  ai:
+    dashscope:
+      # API密钥（从环境变量读取，避免硬编码）
+      api-key: ${DASHSCOPE_API_KEY:}
+      # API基础URL
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      # LLM模型名称
+      model: qwen-max
+      # Embedding模型名称
+      embedding-model: text-embedding-v4
+      # Embedding向量维度
+      embedding-dimension: 2048
+      # API超时时间（毫秒）
+      timeout-ms: 60000
+      # QPS限流（每秒请求数）
+      qps: 10
+
+  # ========================================
+  # 数据源配置（H2内存数据库 - 开发用）
+  # ========================================
+  # 注意：生产环境建议使用SQLite，配置在application-prod.yaml
+  datasource:
+    # H2数据库连接URL（文件模式，数据持久化到data/db目录）
+    url: jdbc:h2:file:./data/db/rag_server
+    # 数据库驱动
+    driver-class-name: org.h2.Driver
+    # 用户名
+    username: sa
+    # 密码（H2默认为空）
+    password:
+
+  # ========================================
+  # JPA / Hibernate 配置
+  # ========================================
+  jpa:
+    # Hibernate DDL模式
+    # - update: 自动更新表结构（开发环境推荐）
+    # - validate: 只验证表结构（生产环境推荐）
+    # - create: 每次启动删除并重建表（测试用）
+    # - create-drop: 启动时创建，关闭时删除（测试用）
+    hibernate:
+      ddl-auto: update
+
+    # 是否在控制台显示SQL语句（开发时可开启，生产环境关闭）
+    show-sql: false
+
+    # 数据库方言（自动检测）
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  # ========================================
+  # 文件上传配置
+  # ========================================
+  servlet:
+    multipart:
+      # 单个文件最大大小（用于PDF上传）
+      max-file-size: 100MB
+      # 整个请求最大大小
+      max-request-size: 100MB
+
+# ========================================
+# Milvus 向量数据库配置
+# ========================================
+# 注意：这些配置将在阶段C（Milvus集成）中使用
+milvus:
+  # Milvus服务地址（从环境变量读取，默认本地）
+  uri: ${MILVUS_URI:http://localhost:19530}
+  # 默认Collection名称
+  collection-name: rag_knowledge_hub
+  # 是否自动创建Collection（首次启动时）
+  auto-create-collection: true
+  # Dense向量字段名
+  dense-field: dense_vector
+  # Sparse向量字段名
+  sparse-field: sparse_vector
+  # 相似度度量方式（COSINE：余弦相似度）
+  metric: COSINE
+
+# ========================================
+# RAG 业务配置
+# ========================================
+rag:
+  # 文档切分配置
+  chunking:
+    # 切分策略（recursive：递归切分，保留结构）
+    strategy: recursive
+    # Chunk大小（Token数量）
+    chunk-size: 512
+    # Chunk重叠大小（上下文连续性）
+    chunk-overlap: 128
+    # 分隔符优先级（从高到低）
+    separators:
+      - "\n## "      # Markdown H2标题
+      - "\n### "     # Markdown H3标题
+      - "\n\n"       # 段落
+      - "。"         # 中文句号
+      - "！"         # 中文感叹号
+      - "？"         # 中文问号
+      - ". "         # 英文句号
+      - "! "         # 英文感叹号
+      - "? "         # 英文问号
+
+  # 检索配置
+  retrieval:
+    # Dense检索召回数量（语义相似度）
+    top-k-dense: 20
+    # Sparse检索召回数量（BM25关键词）
+    top-k-sparse: 20
+    # RRF融合后最终返回数量
+    top-k-final: 10
+    # RRF算法的k值（常数，用于计算倒数排名融合）
+    rrf-k: 60
+    # 是否启用Rerank（LLM精排）
+    enable-rerank: false
+
+  # 文档转换配置
+  transformer:
+    # Chunk精炼器
+    chunk-refiner:
+      enabled: true
+      # 是否使用LLM精炼（false则使用规则模式）
+      use-llm: false
+
+    # 元数据增强器
+    metadata-enricher:
+      enabled: true
+      # 是否使用LLM生成摘要和标签
+      use-llm: false
+
+    # 图片描述生成器
+    image-captioner:
+      # 默认关闭（需要Vision LLM支持）
+      enabled: false
+
+# ========================================
+# 文件路径配置
+# ========================================
+paths:
+  # 数据目录根路径
+  data-dir: ./data
+  # 图片存储目录
+  images-dir: ./data/images
+  # 文档存储目录
+  documents-dir: ./data/documents
+  # 日志目录
+  logs-dir: ./logs
+
+# ========================================
+# Spring Boot Actuator 监控配置
+# ========================================
+management:
+  # 暴露的端点
+  endpoints:
+    web:
+      exposure:
+        # 暴露的端点列表
+        # - health: 健康检查
+        # - info: 应用信息
+        # - metrics: 性能指标
+        include: health,info,metrics
+
+  # 健康检查配置
+  health:
+    # 启用默认健康检查
+    defaults:
+      enabled: true
+
+# ========================================
+# 日志配置
+# ========================================
+logging:
+  # 日志级别配置
+  level:
+    # RAG-SERVER应用日志级别
+    com.ragserver: INFO
+    # Spring AI日志级别（开发时可改为DEBUG）
+    org.springframework.ai: INFO
+    # Spring框架日志级别
+    org.springframework: INFO
+    # Hibernate SQL日志（需要时可改为DEBUG）
+    org.hibernate.SQL: WARN
+
+  # 日志文件配置
+  file:
+    # 日志文件路径（使用paths.logs-dir配置）
+    name: ${paths.logs-dir}/rag-server.log
+    # 日志文件最大大小
+    max-size: 10MB
+    # 保留的日志文件数量
+    max-history: 30
+
+  # 日志格式
+  pattern:
+    # 控制台日志格式（包含时间、线程、级别、类名、消息）
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    # 文件日志格式
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ========================================
+# 服务器配置
+# ========================================
+server:
+  # 服务端口（默认8080）
+  port: 8080
+
+  # Servlet配置
+  servlet:
+    # 应用上下文路径（默认为根路径/）
+    context-path: /
+
+  # 错误处理配置
+  error:
+    # 是否包含异常信息（开发环境true，生产环境false）
+    include-exception: true
+    # 是否包含堆栈跟踪（开发环境true，生产环境false）
+    include-stacktrace: on_param

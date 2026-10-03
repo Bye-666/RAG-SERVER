@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        父项目：Spring Boot
+        提供依赖管理和插件配置
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.1</version>
+        <relativePath/>
+    </parent>
+
+    <!--
+        项目坐标
+    -->
+    <groupId>com.ragserver</groupId>
+    <artifactId>rag-server</artifactId>
+    <version>1.0.0</version>
+    <name>RAG-SERVER</name>
+    <description>基于Spring Boot和Spring AI的企业级RAG框架</description>
+
+    <!--
+        项目属性配置
+    -->
+    <properties>
+        <!-- Java版本：要求JDK 17+ -->
+        <java.version>17</java.version>
+
+        <!-- 项目编码 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- 依赖版本 -->
+        <spring-ai.version>1.0.0-M3</spring-ai.version>
+        <milvus.version>2.6.24</milvus.version>
+        <pdfbox.version>3.0.8</pdfbox.version>
+        <mcp-sdk.version>2.0.0</mcp-sdk.version>
+    </properties>
+
+    <!--
+        依赖管理：统一管理版本号
+    -->
+    <!--
+        注意：Spring AI BOM暂时注释
+        原因：国内Maven镜像（163、阿里云）无法访问Spring Milestones仓库
+        解决方案：在阶段B（DashScope集成）时取消注释，并配置Maven settings.xml使用代理
+        或者直接指定Spring AI依赖的版本号（不使用BOM）
+    -->
+    <!--
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    -->
+
+    <dependencies>
+        <!--
+            ========================================
+            Spring Boot 核心依赖
+            ========================================
+        -->
+
+        <!-- Spring Boot Web：提供REST API支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Boot JPA：提供数据库访问支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Actuator：提供监控和健康检查 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Validation：提供参数校验 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!--
+            ========================================
+            Spring AI 核心依赖
+            ========================================
+        -->
+
+        <!--
+            Spring AI Core：提供ChatClient、EmbeddingClient等抽象接口
+            注意：暂时注释，将在阶段B（DashScope集成）时启用
+            原因：需要配置Maven settings.xml以访问Spring Milestones仓库
+        -->
+        <!--
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-core</artifactId>
+            <version>${spring-ai.version}</version>
+        </dependency>
+        -->
+
+        <!--
+            ========================================
+            向量数据库：Milvus
+            ========================================
+        -->
+
+        <!--
+            Milvus Java SDK：支持混合检索（Dense + Sparse）
+            注意：暂时注释，将在阶段C（Milvus集成）时启用
+        -->
+        <!--
+        <dependency>
+            <groupId>io.milvus</groupId>
+            <artifactId>milvus-sdk-java</artifactId>
+            <version>${milvus.version}</version>
+        </dependency>
+        -->
+
+        <!--
+            ========================================
+            MCP协议支持
+            ========================================
+        -->
+
+        <!--
+            MCP Java SDK：提供stdio传输和工具注册
+            注意：暂时注释，将在阶段F（MCP集成）时启用
+        -->
+        <!--
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>${mcp-sdk.version}</version>
+        </dependency>
+        -->
+
+        <!--
+            ========================================
+            文档处理
+            ========================================
+        -->
+
+        <!--
+            Apache PDFBox：PDF文档解析和图片提取
+            注意：暂时注释，将在阶段D（文档摄取）时启用
+        -->
+        <!--
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+        </dependency>
+        -->
+
+        <!--
+            ========================================
+            数据库
+            ========================================
+        -->
+
+        <!-- H2数据库：开发和测试用内存数据库 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- SQLite JDBC：生产环境轻量级数据库 -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.53.4.0</version>
+        </dependency>
+
+        <!--
+            ========================================
+            工具类
+            ========================================
+        -->
+
+        <!-- Lombok：简化Java代码（@Data、@Slf4j等注解） -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Guava：Google工具库（集合、缓存等） -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.0.0-jre</version>
+        </dependency>
+
+        <!--
+            ========================================
+            测试依赖
+            ========================================
+        -->
+
+        <!-- Spring Boot Test：集成JUnit 5、Mockito等测试框架 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            Testcontainers Milvus：集成测试用Milvus容器
+            注意：暂时注释，将在阶段C（Milvus集成）时启用
+        -->
+        <!--
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>milvus</artifactId>
+            <version>1.19.3</version>
+            <scope>test</scope>
+        </dependency>
+        -->
+
+        <!--
+            Testcontainers JUnit：Testcontainers的JUnit 5集成
+            注意：暂时注释，将在阶段C时启用
+        -->
+        <!--
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>1.19.3</version>
+            <scope>test</scope>
+        </dependency>
+        -->
+    </dependencies>
+
+    <!--
+        ========================================
+        构建配置
+        ========================================
+    -->
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven插件：打包为可执行JAR -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 打包时排除Lombok（编译时注解处理器） -->
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Compiler插件：配置Java编译选项 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <!-- 启用注解处理器（Lombok等） -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Surefire插件：配置单元测试 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+        ========================================
+        Maven仓库配置
+        ========================================
+    -->
+    <repositories>
+        <!-- Spring Milestones仓库：获取Spring AI的里程碑版本 -->
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <!--
+        插件仓库配置（与repositories分开）
+    -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+</project>
