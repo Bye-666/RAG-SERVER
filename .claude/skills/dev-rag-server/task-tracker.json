@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 12:36:38",
+  "lastUpdated": "2026-10-04 12:40:47",
   "currentPhase": "D",
   "currentTask": "D5",
   "tasks": {
@@ -222,11 +222,14 @@
       "name": "批量Embedding编码",
       "phase": "D",
       "priority": "P0",
-      "status": "in-progress",
+      "status": "completed",
       "startedAt": "2026-10-04 12:36:38",
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:40:47",
+      "files": [
+        "src/main/java/com/ragserver/service/EmbeddingService.java",
+        "src/test/java/com/ragserver/service/EmbeddingServiceTest.java"
+      ],
+      "notes": "批量Embedding编码实现完成。支持内容哈希缓存、去重优化、自动分批处理，性能测试1000条文本151ms，测试通过（12/12）。"
     },
     "D6": {
       "name": "Pipeline编排",
@@ -591,11 +594,10 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 15,
+    "completed": 16,
     "inProgress": 0,
     "pending": 37,
     "blocked": 0,
-    "skipped": 0,
-    "in-progress": null
+    "skipped": 0
   }
 }
