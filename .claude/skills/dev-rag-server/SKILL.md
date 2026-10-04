@@ -218,27 +218,21 @@ Agent显示：
 
 Agent自动执行：
 ```bash
-# 步骤1: 提交代码
-git add .
-git commit -m "feat: 完成任务C2 - Dense检索实现..."
-
-# 步骤2: 立即更新任务进度（必须）
+# 1. 先更新任务进度
 node .claude/skills/dev-rag-server/dev-driver.mjs complete C2 \
   --files "生成的文件列表" \
   --notes "任务完成说明"
 
-# 步骤3: 提交进度文件（必须）
-git add .claude/skills/dev-rag-server/task-tracker.json \
-        .claude/skills/dev-rag-server/progress.md \
-        .claude/settings.json
-git commit -m "chore: 更新任务C2进度"
+# 2. 一次性提交所有内容（代码 + 进度文件）
+git add .
+git commit -m "feat: 完成任务C2 - Dense检索实现
+
+<详细说明>
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
-**🔴 重要**：这三个步骤必须连续执行，不要分离！
-- 步骤1提交代码
-- 步骤2更新进度文件
-- 步骤3提交进度文件
-- 这样保证代码和进度始终同步
+**重点**：先更新进度，再一次性提交全部，保持同步且简洁。
 
 ### v2.0 vs v1.0 对比
 
