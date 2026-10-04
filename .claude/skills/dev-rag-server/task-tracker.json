@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 12:40:47",
+  "lastUpdated": "2026-10-04 12:57:25",
   "currentPhase": "D",
-  "currentTask": "D5",
+  "currentTask": "D6",
   "tasks": {
     "A1": {
       "name": "Maven项目初始化",
@@ -235,11 +235,14 @@
       "name": "Pipeline编排",
       "phase": "D",
       "priority": "P0",
-      "status": "pending",
-      "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "status": "completed",
+      "startedAt": "2026-10-04 12:49:39",
+      "completedAt": "2026-10-04 12:57:25",
+      "files": [
+        "src/main/java/com/ragserver/ingestion/IngestionPipeline.java",
+        "src/main/java/com/ragserver/service/IngestionService.java"
+      ],
+      "notes": "Pipeline编排实现完成。串联6步摄取流程（PDF加载→分块→清理→元数据增强→Embedding→存储），支持批量处理和清晰异常处理，核心功能编译通过。"
     },
     "D7": {
       "name": "ImageCaptioner实现",
@@ -594,9 +597,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 16,
+    "completed": 17,
     "inProgress": 0,
-    "pending": 37,
+    "pending": 36,
     "blocked": 0,
     "skipped": 0
   }

@@ -21,7 +21,8 @@
       "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D5)",
       "Bash(git commit -m 'feat: 完成任务D5 - 批量Embedding编码 *)",
       "Bash(git commit -m 'chore: 更新skill进度跟踪 - D5任务完成 *)",
-      "Bash(git commit -m 'chore: 更新settings.json命令历史 *)"
+      "Bash(git commit -m 'chore: 更新settings.json命令历史 *)",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D6)"
     ]
   }
 }
