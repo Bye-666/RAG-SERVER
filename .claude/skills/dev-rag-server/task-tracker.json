@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 13:42:46",
+  "lastUpdated": "2026-10-04 13:49:03",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -311,11 +311,14 @@
       "name": "RagService核心实现",
       "phase": "E",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 13:49:03",
+      "files": [
+        "src/main/java/com/ragserver/service/RagService.java",
+        "src/test/java/com/ragserver/service/RagServiceTest.java"
+      ],
+      "notes": "RagService核心实现完成。串联检索→Rerank→Prompt构建→LLM生成→Citation添加的完整RAG流程，支持多种查询模式（完整查询、仅检索、仅构建Prompt），测试通过（12/12）。"
     },
     "E5": {
       "name": "Citation生成",
@@ -610,9 +613,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 21,
+    "completed": 22,
     "inProgress": 0,
-    "pending": 32,
+    "pending": 31,
     "blocked": 0,
     "skipped": 0
   }
