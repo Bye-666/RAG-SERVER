@@ -15,7 +15,10 @@
       "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete D3 --files \"src/main/java/com/ragserver/ingestion/transformer/ChunkRefiner.java\" --notes \"ChunkRefiner实现完成\")",
       "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs status)",
       "Edit(/.claude/skills/dev-rag-server/**)",
-      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D4)"
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D4)",
+      "Bash(git commit -m 'feat: 完成任务D4 - MetadataEnricher实现 *)",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete D4 --files src/main/java/com/ragserver/ingestion/transformer/MetadataEnricher.java,src/test/java/com/ragserver/ingestion/transformer/MetadataEnricherTest.java --notes MetadataEnricher实现完成。支持规则模式和LLM模式双模式元数据增强，包括标题提取、关键词提取、标签生成等功能，测试通过（17/17）。)",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D5)"
     ]
   }
 }
