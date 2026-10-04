@@ -19,7 +19,9 @@
       "Bash(git commit -m 'feat: 完成任务D4 - MetadataEnricher实现 *)",
       "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete D4 --files src/main/java/com/ragserver/ingestion/transformer/MetadataEnricher.java,src/test/java/com/ragserver/ingestion/transformer/MetadataEnricherTest.java --notes MetadataEnricher实现完成。支持规则模式和LLM模式双模式元数据增强，包括标题提取、关键词提取、标签生成等功能，测试通过（17/17）。)",
       "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D5)",
-      "Bash(git commit -m 'feat: 完成任务D5 - 批量Embedding编码 *)"
+      "Bash(git commit -m 'feat: 完成任务D5 - 批量Embedding编码 *)",
+      "Bash(git commit -m 'chore: 更新skill进度跟踪 - D5任务完成 *)",
+      "Bash(git commit -m 'chore: 更新settings.json命令历史 *)"
     ]
   }
 }
