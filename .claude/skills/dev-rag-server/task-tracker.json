@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 13:36:39",
+  "lastUpdated": "2026-10-04 13:42:46",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -297,11 +297,15 @@
       "name": "Prompt模板管理",
       "phase": "E",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 13:42:46",
+      "files": [
+        "src/main/resources/prompts/rag-query.st",
+        "src/main/java/com/ragserver/service/PromptService.java",
+        "src/test/java/com/ragserver/service/PromptServiceTest.java"
+      ],
+      "notes": "Prompt模板管理实现完成。创建RAG查询模板，实现PromptService（模板加载、渲染、Citation生成），支持简化版Mustache语法，测试通过（14/14）。"
     },
     "E4": {
       "name": "RagService核心实现",
@@ -606,9 +610,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 20,
+    "completed": 21,
     "inProgress": 0,
-    "pending": 33,
+    "pending": 32,
     "blocked": 0,
     "skipped": 0
   }
