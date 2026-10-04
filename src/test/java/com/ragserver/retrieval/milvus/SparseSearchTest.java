@@ -4,6 +4,7 @@ import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.config.DashScopeProperties;
 import com.ragserver.config.MilvusProperties;
 import com.ragserver.retrieval.BM25Encoder;
+import com.ragserver.retrieval.RRFFusion;
 import com.ragserver.retrieval.model.Document;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
@@ -37,6 +38,7 @@ class SparseSearchTest {
     private static MilvusHybridStore hybridStore;
     private static BM25Encoder bm25Encoder;
     private static DashScopeEmbeddingClient embeddingClient;
+    private static RRFFusion rrfFusion;
     private static MilvusProperties milvusProperties;
 
     // 测试文档（包含明显关键词）
@@ -108,8 +110,11 @@ class SparseSearchTest {
             .toList();
         bm25Encoder.fitBatch(texts);
 
+        // 创建RRF融合器
+        rrfFusion = new RRFFusion();
+
         // 创建MilvusHybridStore
-        hybridStore = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient, bm25Encoder);
+        hybridStore = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient, bm25Encoder, rrfFusion);
 
         // 初始化Collection
         hybridStore.initializeCollection();

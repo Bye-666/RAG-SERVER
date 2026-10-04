@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.config.MilvusProperties;
 import com.ragserver.retrieval.BM25Encoder;
+import com.ragserver.retrieval.RRFFusion;
 import com.ragserver.retrieval.model.Document;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.common.ConsistencyLevel;
@@ -62,6 +63,7 @@ public class MilvusHybridStore {
     private final MilvusProperties properties;
     private final DashScopeEmbeddingClient embeddingClient;
     private final BM25Encoder bm25Encoder;
+    private final RRFFusion rrfFusion;
 
     /**
      * Schema常量
@@ -73,11 +75,13 @@ public class MilvusHybridStore {
     private static final String FIELD_METADATA = "metadata";
 
     public MilvusHybridStore(MilvusClientV2 milvusClient, MilvusProperties properties,
-                             DashScopeEmbeddingClient embeddingClient, BM25Encoder bm25Encoder) {
+                             DashScopeEmbeddingClient embeddingClient, BM25Encoder bm25Encoder,
+                             RRFFusion rrfFusion) {
         this.milvusClient = milvusClient;
         this.properties = properties;
         this.embeddingClient = embeddingClient;
         this.bm25Encoder = bm25Encoder;
+        this.rrfFusion = rrfFusion;
     }
 
     /**
@@ -493,5 +497,82 @@ public class MilvusHybridStore {
         log.info("Sparse检索完成：返回{}个文档", documents.size());
 
         return documents;
+    }
+
+    /**
+     * 混合检索（Dense + Sparse + RRF融合）
+     *
+     * <p>结合语义检索和关键词检索，通过RRF算法融合结果。</p>
+     *
+     * <h3>工作流程</h3>
+     * <ol>
+     *   <li>并行执行Dense检索（语义相似度）</li>
+     *   <li>并行执行Sparse检索（BM25关键词）</li>
+     *   <li>使用RRF算法融合两路结果</li>
+     *   <li>返回融合后的TopK文档</li>
+     * </ol>
+     *
+     * <h3>优势</h3>
+     * <ul>
+     *   <li>兼顾语义理解和关键词匹配</li>
+     *   <li>提高召回率和准确性</li>
+     *   <li>对不同查询类型有更好的鲁棒性</li>
+     * </ul>
+     *
+     * <h3>使用示例</h3>
+     * <pre>{@code
+     * // 混合检索：既考虑语义，也考虑关键词
+     * List<Document> results = hybridStore.searchHybrid("Milvus向量数据库", 10);
+     *
+     * results.forEach(doc -> {
+     *     System.out.println("RRF分数: " + doc.getScore());
+     *     System.out.println("文本: " + doc.getText());
+     * });
+     * }</pre>
+     *
+     * <h3>参数建议</h3>
+     * <ul>
+     *   <li>topK：建议10-20，平衡性能和效果</li>
+     *   <li>retrievalTopK：建议是topK的2-3倍，增加融合候选</li>
+     * </ul>
+     *
+     * @param query 查询文本
+     * @param topK 最终返回的文档数量
+     * @return 融合后的文档列表，按RRF分数降序排序
+     */
+    public List<Document> searchHybrid(String query, int topK) {
+        return searchHybrid(query, topK, topK * 2);
+    }
+
+    /**
+     * 混合检索（可配置检索数量）
+     *
+     * <p>允许单独控制每路检索的文档数量和最终返回数量。</p>
+     *
+     * @param query 查询文本
+     * @param topK 最终返回的文档数量
+     * @param retrievalTopK 每路检索的文档数量
+     * @return 融合后的文档列表
+     */
+    public List<Document> searchHybrid(String query, int topK, int retrievalTopK) {
+        log.info("开始混合检索：query={}, topK={}, retrievalTopK={}", query, topK, retrievalTopK);
+
+        long startTime = System.currentTimeMillis();
+
+        // 1. Dense检索（语义相似度）
+        List<Document> denseResults = searchDense(query, retrievalTopK);
+        log.debug("Dense检索完成：{}个文档", denseResults.size());
+
+        // 2. Sparse检索（BM25关键词）
+        List<Document> sparseResults = searchSparse(query, retrievalTopK);
+        log.debug("Sparse检索完成：{}个文档", sparseResults.size());
+
+        // 3. RRF融合
+        List<Document> fusedResults = rrfFusion.fuseTwoWay(denseResults, sparseResults, topK);
+
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        log.info("混合检索完成：返回{}个文档，耗时{}ms", fusedResults.size(), elapsedTime);
+
+        return fusedResults;
     }
 }
