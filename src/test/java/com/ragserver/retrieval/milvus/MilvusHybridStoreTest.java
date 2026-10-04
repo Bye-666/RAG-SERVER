@@ -63,7 +63,7 @@ class MilvusHybridStoreTest {
         properties.setUri(uri);
         properties.setCollectionName("test_collection");
         properties.setAutoCreateCollection(true);
-        properties.setDenseVectorDimension(2048);
+        properties.setDenseVectorDimension(1024);
 
         // 创建Milvus客户端
         ConnectConfig connectConfig = ConnectConfig.builder()

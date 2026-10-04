@@ -132,15 +132,30 @@ public class BM25Encoder {
             // 获取或分配词ID
             int termId = getOrCreateTermId(term);
 
-            // 计算IDF
+            // 计算IDF（确保非负）
             int df = documentFrequency.getOrDefault(termId, 1);
             double idf = Math.log((totalDocuments - df + 0.5) / (df + 0.5) + 1.0);
+
+            // 确保IDF非负（对于高频词可能为负）
+            if (idf < 0) {
+                idf = 0.0;
+            }
 
             // 计算BM25分数
             double k1Factor = K1 * (1 - B + B * docLength / (avgDocLength + 1.0));
             double bm25Score = idf * (tf * (K1 + 1)) / (tf + k1Factor);
 
-            sparseVector.put(termId, (float) bm25Score);
+            // 只添加非零分数
+            if (bm25Score > 0) {
+                sparseVector.put(termId, (float) bm25Score);
+            }
+        }
+
+        // 如果向量为空，添加一个默认值（避免Milvus拒绝空向量）
+        if (sparseVector.isEmpty()) {
+            // 使用ID 0，分数为极小值
+            sparseVector.put(0, 0.0001f);
+            log.debug("文档编码为空向量，添加默认值");
         }
 
         log.debug("编码文本：{}词 -> {}维稀疏向量", tokens.size(), sparseVector.size());

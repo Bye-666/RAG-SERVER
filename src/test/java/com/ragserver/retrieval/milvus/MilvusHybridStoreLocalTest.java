@@ -52,7 +52,7 @@ class MilvusHybridStoreLocalTest {
         properties.setUri("http://localhost:19530");
         properties.setCollectionName("test_collection_local");
         properties.setAutoCreateCollection(true);
-        properties.setDenseVectorDimension(2048);
+        properties.setDenseVectorDimension(1024);
 
         // 创建Milvus客户端
         ConnectConfig connectConfig = ConnectConfig.builder()

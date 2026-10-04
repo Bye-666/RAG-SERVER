@@ -83,7 +83,7 @@ class DenseSearchTest {
         milvusProperties.setUri("http://localhost:19530");
         milvusProperties.setCollectionName("test_dense_search");
         milvusProperties.setAutoCreateCollection(true);
-        milvusProperties.setDenseVectorDimension(2048);
+        milvusProperties.setDenseVectorDimension(1024);
 
         // 创建Milvus客户端
         ConnectConfig connectConfig = ConnectConfig.builder()
@@ -93,6 +93,16 @@ class DenseSearchTest {
         try {
             milvusClient = new MilvusClientV2(connectConfig);
             System.out.println("✅ 成功连接到Milvus");
+
+            // 删除旧Collection（如果存在）
+            try {
+                milvusClient.dropCollection(io.milvus.v2.service.collection.request.DropCollectionReq.builder()
+                    .collectionName("test_dense_search")
+                    .build());
+                System.out.println("🗑️ 已删除旧Collection");
+            } catch (Exception e) {
+                // Collection不存在，忽略
+            }
         } catch (Exception e) {
             System.err.println("❌ 无法连接到Milvus：" + e.getMessage());
             throw new RuntimeException("Milvus连接失败", e);

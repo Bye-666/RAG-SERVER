@@ -153,9 +153,9 @@ public class MilvusProperties {
     /**
      * Dense向量维度
      *
-     * <p>默认值：2048</p>
+     * <p>默认值：1024</p>
      *
-     * <p>DashScope text-embedding-v4输出2048维向量。</p>
+     * <p>DashScope text-embedding-v4输出1024维向量。</p>
      */
-    private Integer denseVectorDimension = 2048;
+    private Integer denseVectorDimension = 1024;
 }

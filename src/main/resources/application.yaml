@@ -40,7 +40,7 @@ spring:
       # Embedding模型名称
       embedding-model: text-embedding-v4
       # Embedding向量维度
-      embedding-dimension: 2048
+      embedding-dimension: 1024
       # API超时时间（毫秒）
       timeout-ms: 60000
       # QPS限流（每秒请求数）

@@ -417,7 +417,7 @@ public class MilvusHybridStore {
             Document doc = Document.builder()
                 .id((String) entity.get(FIELD_ID))
                 .text((String) entity.get(FIELD_TEXT))
-                .metadata((Map<String, Object>) entity.get(FIELD_METADATA))
+                .metadata(convertJsonObjectToMap(entity.get(FIELD_METADATA)))
                 .score(result.getScore())
                 .build();
 
@@ -425,6 +425,36 @@ public class MilvusHybridStore {
         }
 
         return documents;
+    }
+
+    /**
+     * 将JsonObject转换为Map
+     *
+     * @param obj 对象
+     * @return Map
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> convertJsonObjectToMap(Object obj) {
+        if (obj == null) {
+            return Collections.emptyMap();
+        }
+        if (obj instanceof Map) {
+            return (Map<String, Object>) obj;
+        }
+        if (obj instanceof JsonObject) {
+            JsonObject jsonObject = (JsonObject) obj;
+            Map<String, Object> map = new HashMap<>();
+            Gson gson = new Gson();
+            jsonObject.asMap().forEach((key, value) -> {
+                if (value.isJsonPrimitive()) {
+                    map.put(key, gson.fromJson(value, Object.class));
+                } else {
+                    map.put(key, value.toString());
+                }
+            });
+            return map;
+        }
+        return Collections.emptyMap();
     }
 
     /**

@@ -24,7 +24,7 @@ class MilvusHybridStoreUnitTest {
         properties.setUri("http://localhost:19530");
         properties.setCollectionName("test_collection");
         properties.setAutoCreateCollection(true);
-        properties.setDenseVectorDimension(2048);
+        properties.setDenseVectorDimension(1024);
 
         assertEquals("http://localhost:19530", properties.getUri());
         assertEquals("test_collection", properties.getCollectionName());

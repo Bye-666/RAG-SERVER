@@ -87,7 +87,7 @@ class HybridSearchTest {
         milvusProperties.setUri("http://localhost:19530");
         milvusProperties.setCollectionName("test_hybrid_search");
         milvusProperties.setAutoCreateCollection(true);
-        milvusProperties.setDenseVectorDimension(2048);
+        milvusProperties.setDenseVectorDimension(1024);
 
         // 创建Milvus客户端
         ConnectConfig connectConfig = ConnectConfig.builder()
