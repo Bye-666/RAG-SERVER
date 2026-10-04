@@ -1,6 +1,10 @@
 package com.ragserver.retrieval.milvus;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.config.MilvusProperties;
+import com.ragserver.retrieval.model.Document;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.common.ConsistencyLevel;
 import io.milvus.v2.common.DataType;
@@ -9,11 +13,16 @@ import io.milvus.v2.service.collection.request.CreateCollectionReq;
 import io.milvus.v2.service.collection.request.DescribeCollectionReq;
 import io.milvus.v2.service.collection.request.HasCollectionReq;
 import io.milvus.v2.service.collection.response.DescribeCollectionResp;
+import io.milvus.v2.service.vector.request.InsertReq;
+import io.milvus.v2.service.vector.request.SearchReq;
+import io.milvus.v2.service.vector.request.data.FloatVec;
+import io.milvus.v2.service.vector.response.InsertResp;
+import io.milvus.v2.service.vector.response.SearchResp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Milvus混合检索存储
@@ -49,6 +58,7 @@ public class MilvusHybridStore {
 
     private final MilvusClientV2 milvusClient;
     private final MilvusProperties properties;
+    private final DashScopeEmbeddingClient embeddingClient;
 
     /**
      * Schema常量
@@ -59,9 +69,11 @@ public class MilvusHybridStore {
     private static final String FIELD_SPARSE_VECTOR = "sparse_vector";
     private static final String FIELD_METADATA = "metadata";
 
-    public MilvusHybridStore(MilvusClientV2 milvusClient, MilvusProperties properties) {
+    public MilvusHybridStore(MilvusClientV2 milvusClient, MilvusProperties properties,
+                             DashScopeEmbeddingClient embeddingClient) {
         this.milvusClient = milvusClient;
         this.properties = properties;
+        this.embeddingClient = embeddingClient;
     }
 
     /**
@@ -222,5 +234,180 @@ public class MilvusHybridStore {
      */
     public MilvusClientV2 getClient() {
         return milvusClient;
+    }
+
+    /**
+     * Dense向量检索（语义相似度检索）
+     *
+     * <p>基于查询文本的语义向量，在Milvus中检索最相似的文档。</p>
+     *
+     * <h3>工作流程</h3>
+     * <ol>
+     *   <li>将查询文本转换为2048维Dense向量（DashScope Embedding）</li>
+     *   <li>在Milvus中搜索最相似的TopK个向量</li>
+     *   <li>按余弦相似度排序返回文档</li>
+     * </ol>
+     *
+     * <h3>使用示例</h3>
+     * <pre>{@code
+     * List<Document> results = hybridStore.searchDense("什么是RAG技术", 10);
+     * results.forEach(doc -> {
+     *     System.out.println("得分: " + doc.getScore());
+     *     System.out.println("文本: " + doc.getText());
+     * });
+     * }</pre>
+     *
+     * @param query 查询文本
+     * @param topK 返回前K个最相似文档
+     * @return 检索到的文档列表，按相似度降序排序
+     */
+    public List<Document> searchDense(String query, int topK) {
+        log.debug("开始Dense检索：query={}, topK={}", query, topK);
+
+        // 1. 将查询文本转换为向量
+        List<Double> queryVectorDouble = embeddingClient.embed(query);
+
+        // 转换为Float列表（Milvus要求）
+        List<Float> queryVector = queryVectorDouble.stream()
+            .map(Double::floatValue)
+            .collect(Collectors.toList());
+
+        log.debug("查询向量维度：{}", queryVector.size());
+
+        // 2. 构建搜索参数
+        SearchReq searchReq = SearchReq.builder()
+            .collectionName(properties.getCollectionName())
+            .data(Collections.singletonList(new FloatVec(queryVector)))
+            .annsField(FIELD_DENSE_VECTOR)
+            .topK(topK)
+            .outputFields(Arrays.asList(FIELD_ID, FIELD_TEXT, FIELD_METADATA))
+            .build();
+
+        // 3. 执行搜索
+        SearchResp searchResp = milvusClient.search(searchReq);
+
+        // 4. 解析结果
+        List<Document> documents = parseSearchResults(searchResp);
+
+        log.info("Dense检索完成：返回{}个文档", documents.size());
+
+        return documents;
+    }
+
+    /**
+     * 插入文档
+     *
+     * <p>将文档及其向量插入Milvus Collection。</p>
+     *
+     * <h3>字段说明</h3>
+     * <ul>
+     *   <li>id：文档ID（必填）</li>
+     *   <li>text：文档文本（必填）</li>
+     *   <li>dense_vector：Dense向量（自动生成或手动提供）</li>
+     *   <li>sparse_vector：Sparse向量（可选，用于BM25）</li>
+     *   <li>metadata：元数据（可选）</li>
+     * </ul>
+     *
+     * <h3>使用示例</h3>
+     * <pre>{@code
+     * Document doc = Document.builder()
+     *     .id("doc_001")
+     *     .text("RAG是检索增强生成技术")
+     *     .metadata(Map.of("source", "wiki"))
+     *     .build();
+     *
+     * List<String> ids = hybridStore.insert(Collections.singletonList(doc));
+     * System.out.println("插入成功：" + ids);
+     * }</pre>
+     *
+     * @param documents 要插入的文档列表
+     * @return 插入的文档ID列表
+     */
+    public List<String> insert(List<Document> documents) {
+        if (documents == null || documents.isEmpty()) {
+            log.warn("插入文档列表为空");
+            return Collections.emptyList();
+        }
+
+        log.info("开始插入{}个文档", documents.size());
+
+        // 1. 准备数据
+        List<JsonObject> rows = new ArrayList<>();
+        Gson gson = new Gson();
+
+        for (Document doc : documents) {
+            // 生成Dense向量（如果没有提供）
+            List<Float> denseVector = doc.getDenseVector();
+            if (denseVector == null || denseVector.isEmpty()) {
+                // DashScope返回List<Double>，需要转换为List<Float>
+                List<Double> vectorDouble = embeddingClient.embed(doc.getText());
+                denseVector = vectorDouble.stream()
+                    .map(Double::floatValue)
+                    .collect(Collectors.toList());
+                doc.setDenseVector(denseVector);
+            }
+
+            // 构建数据行（使用JsonObject）
+            JsonObject row = new JsonObject();
+            row.addProperty(FIELD_ID, doc.getId());
+            row.addProperty(FIELD_TEXT, doc.getText());
+            row.add(FIELD_DENSE_VECTOR, gson.toJsonTree(denseVector));
+
+            // Sparse向量（暂时设为空，后续任务C3实现）
+            row.add(FIELD_SPARSE_VECTOR, gson.toJsonTree(doc.getSparseVector() != null ? doc.getSparseVector() : Collections.emptyMap()));
+
+            // 元数据
+            row.add(FIELD_METADATA, gson.toJsonTree(doc.getMetadata() != null ? doc.getMetadata() : Collections.emptyMap()));
+
+            rows.add(row);
+        }
+
+        // 2. 插入数据
+        InsertReq insertReq = InsertReq.builder()
+            .collectionName(properties.getCollectionName())
+            .data(rows)
+            .build();
+
+        InsertResp insertResp = milvusClient.insert(insertReq);
+
+        log.info("插入完成：成功插入{}个文档", insertResp.getInsertCnt());
+
+        // 3. 返回插入的ID
+        return documents.stream()
+            .map(Document::getId)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * 解析搜索结果
+     *
+     * @param searchResp Milvus搜索响应
+     * @return 文档列表
+     */
+    private List<Document> parseSearchResults(SearchResp searchResp) {
+        List<Document> documents = new ArrayList<>();
+
+        List<List<SearchResp.SearchResult>> searchResults = searchResp.getSearchResults();
+        if (searchResults == null || searchResults.isEmpty()) {
+            return documents;
+        }
+
+        // 取第一个查询的结果（单查询）
+        List<SearchResp.SearchResult> results = searchResults.get(0);
+
+        for (SearchResp.SearchResult result : results) {
+            Map<String, Object> entity = result.getEntity();
+
+            Document doc = Document.builder()
+                .id((String) entity.get(FIELD_ID))
+                .text((String) entity.get(FIELD_TEXT))
+                .metadata((Map<String, Object>) entity.get(FIELD_METADATA))
+                .score(result.getScore())
+                .build();
+
+            documents.add(doc);
+        }
+
+        return documents;
     }
 }

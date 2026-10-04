@@ -1,5 +1,7 @@
 package com.ragserver.retrieval.milvus;
 
+import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
+import com.ragserver.config.DashScopeProperties;
 import com.ragserver.config.MilvusProperties;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
@@ -36,6 +38,8 @@ class MilvusHybridStoreLocalTest {
     private static MilvusClientV2 milvusClient;
     private static MilvusHybridStore hybridStore;
     private static MilvusProperties properties;
+    private static DashScopeEmbeddingClient embeddingClient;
+    private static DashScopeProperties dashScopeProperties;
 
     @BeforeAll
     static void setUpAll() {
@@ -60,8 +64,20 @@ class MilvusHybridStoreLocalTest {
             throw new RuntimeException("Milvus连接失败", e);
         }
 
+        // 配置DashScope
+        dashScopeProperties = new DashScopeProperties();
+        dashScopeProperties.setApiKey(System.getenv("DASHSCOPE_API_KEY"));
+        dashScopeProperties.setBaseUrl("https://dashscope.aliyuncs.com/compatible-mode/v1");
+        dashScopeProperties.setModel("text-embedding-v4");
+
+        // 创建Embedding客户端
+        embeddingClient = new DashScopeEmbeddingClient(dashScopeProperties, new org.springframework.web.client.RestTemplate());
+
         // 创建MilvusHybridStore
-        hybridStore = new MilvusHybridStore(milvusClient, properties);
+        hybridStore = new MilvusHybridStore(milvusClient, properties, embeddingClient);
+
+        // 初始化Collection
+        hybridStore.initializeCollection();
     }
 
     @AfterAll

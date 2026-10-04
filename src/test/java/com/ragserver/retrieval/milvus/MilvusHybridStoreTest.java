@@ -1,5 +1,7 @@
 package com.ragserver.retrieval.milvus;
 
+import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
+import com.ragserver.config.DashScopeProperties;
 import com.ragserver.config.MilvusProperties;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestTemplate;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -42,6 +45,7 @@ class MilvusHybridStoreTest {
     private MilvusClientV2 milvusClient;
     private MilvusHybridStore hybridStore;
     private MilvusProperties properties;
+    private DashScopeEmbeddingClient embeddingClient;
 
     @BeforeEach
     void setUp() {
@@ -63,8 +67,17 @@ class MilvusHybridStoreTest {
             .build();
         milvusClient = new MilvusClientV2(connectConfig);
 
+        // 配置DashScope
+        DashScopeProperties dashScopeProperties = new DashScopeProperties();
+        dashScopeProperties.setApiKey(System.getenv("DASHSCOPE_API_KEY"));
+        dashScopeProperties.setBaseUrl("https://dashscope.aliyuncs.com/compatible-mode/v1");
+        dashScopeProperties.setModel("text-embedding-v4");
+
+        // 创建Embedding客户端
+        embeddingClient = new DashScopeEmbeddingClient(dashScopeProperties, new RestTemplate());
+
         // 创建MilvusHybridStore
-        hybridStore = new MilvusHybridStore(milvusClient, properties);
+        hybridStore = new MilvusHybridStore(milvusClient, properties, embeddingClient);
     }
 
     @AfterEach

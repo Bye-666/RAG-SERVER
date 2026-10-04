@@ -1,5 +1,6 @@
 package com.ragserver.config;
 
+import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.retrieval.milvus.MilvusHybridStore;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
@@ -54,14 +55,16 @@ public class MilvusConfig {
      * <p>封装Milvus操作的核心类。</p>
      *
      * @param milvusClient Milvus客户端
+     * @param embeddingClient DashScope Embedding客户端
      * @return MilvusHybridStore实例
      */
     @Bean
-    public MilvusHybridStore milvusHybridStore(MilvusClientV2 milvusClient) {
-        MilvusHybridStore store = new MilvusHybridStore(milvusClient, milvusProperties);
+    public MilvusHybridStore milvusHybridStore(MilvusClientV2 milvusClient,
+                                               DashScopeEmbeddingClient embeddingClient) {
+        MilvusHybridStore store = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient);
 
         // 如果配置了自动创建Collection，则初始化
-        if (milvusProperties.isAutoCreateCollection()) {
+        if (milvusProperties.getAutoCreateCollection()) {
             log.info("自动创建Collection已启用，初始化Collection...");
             store.initializeCollection();
         }
