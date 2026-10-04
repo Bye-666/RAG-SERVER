@@ -190,6 +190,31 @@ public class BM25Encoder {
     }
 
     /**
+     * 批量编码
+     *
+     * <p>批量将文本编码为稀疏向量。</p>
+     *
+     * @param texts 文本列表
+     * @return 稀疏向量列表（与输入顺序对应）
+     */
+    public List<Map<Integer, Float>> encodeBatch(List<String> texts) {
+        if (texts == null || texts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        log.debug("批量编码：{}个文本", texts.size());
+
+        List<Map<Integer, Float>> sparseVectors = new ArrayList<>();
+        for (String text : texts) {
+            sparseVectors.add(encode(text));
+        }
+
+        log.debug("批量编码完成：返回{}个稀疏向量", sparseVectors.size());
+
+        return sparseVectors;
+    }
+
+    /**
      * 简单分词器
      *
      * <p>将文本分词为单个字符（适合中文）。</p>
