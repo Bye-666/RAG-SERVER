@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 13:20:31",
+  "lastUpdated": "2026-10-04 13:31:49",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -271,11 +271,15 @@
       "name": "HybridRetriever实现",
       "phase": "E",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 13:31:49",
+      "files": [
+        "src/main/java/com/ragserver/retrieval/HybridRetriever.java",
+        "src/main/java/com/ragserver/retrieval/RerankerService.java",
+        "src/test/java/com/ragserver/retrieval/HybridRetrieverTest.java"
+      ],
+      "notes": "HybridRetriever实现完成。协调混合检索（Dense+Sparse），支持可选Rerank，提供并行检索与异常降级能力，测试通过（9/9）。"
     },
     "E2": {
       "name": "Reranker实现",
@@ -600,9 +604,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 18,
+    "completed": 19,
     "inProgress": 0,
-    "pending": 35,
+    "pending": 34,
     "blocked": 0,
     "skipped": 0
   }
