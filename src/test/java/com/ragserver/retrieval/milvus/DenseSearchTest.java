@@ -3,6 +3,7 @@ package com.ragserver.retrieval.milvus;
 import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.config.DashScopeProperties;
 import com.ragserver.config.MilvusProperties;
+import com.ragserver.retrieval.BM25Encoder;
 import com.ragserver.retrieval.model.Document;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
@@ -41,6 +42,7 @@ class DenseSearchTest {
     private static MilvusClientV2 milvusClient;
     private static MilvusHybridStore hybridStore;
     private static DashScopeEmbeddingClient embeddingClient;
+    private static BM25Encoder bm25Encoder;
     private static MilvusProperties milvusProperties;
 
     // 测试文档
@@ -103,8 +105,11 @@ class DenseSearchTest {
         // 创建Embedding客户端
         embeddingClient = new DashScopeEmbeddingClient(dashScopeProperties, new RestTemplate());
 
+        // 创建BM25编码器
+        bm25Encoder = new BM25Encoder();
+
         // 创建MilvusHybridStore
-        hybridStore = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient);
+        hybridStore = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient, bm25Encoder);
 
         // 初始化Collection
         hybridStore.initializeCollection();

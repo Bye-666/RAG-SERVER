@@ -3,6 +3,7 @@ package com.ragserver.retrieval.milvus;
 import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.config.DashScopeProperties;
 import com.ragserver.config.MilvusProperties;
+import com.ragserver.retrieval.BM25Encoder;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.service.collection.response.DescribeCollectionResp;
@@ -40,6 +41,7 @@ class MilvusHybridStoreLocalTest {
     private static MilvusProperties properties;
     private static DashScopeEmbeddingClient embeddingClient;
     private static DashScopeProperties dashScopeProperties;
+    private static BM25Encoder bm25Encoder;
 
     @BeforeAll
     static void setUpAll() {
@@ -73,8 +75,11 @@ class MilvusHybridStoreLocalTest {
         // 创建Embedding客户端
         embeddingClient = new DashScopeEmbeddingClient(dashScopeProperties, new org.springframework.web.client.RestTemplate());
 
+        // 创建BM25编码器
+        bm25Encoder = new BM25Encoder();
+
         // 创建MilvusHybridStore
-        hybridStore = new MilvusHybridStore(milvusClient, properties, embeddingClient);
+        hybridStore = new MilvusHybridStore(milvusClient, properties, embeddingClient, bm25Encoder);
 
         // 初始化Collection
         hybridStore.initializeCollection();

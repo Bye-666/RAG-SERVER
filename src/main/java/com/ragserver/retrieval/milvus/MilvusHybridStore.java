@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
 import com.ragserver.config.MilvusProperties;
+import com.ragserver.retrieval.BM25Encoder;
 import com.ragserver.retrieval.model.Document;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.common.ConsistencyLevel;
@@ -16,6 +17,7 @@ import io.milvus.v2.service.collection.response.DescribeCollectionResp;
 import io.milvus.v2.service.vector.request.InsertReq;
 import io.milvus.v2.service.vector.request.SearchReq;
 import io.milvus.v2.service.vector.request.data.FloatVec;
+import io.milvus.v2.service.vector.request.data.SparseFloatVec;
 import io.milvus.v2.service.vector.response.InsertResp;
 import io.milvus.v2.service.vector.response.SearchResp;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +61,7 @@ public class MilvusHybridStore {
     private final MilvusClientV2 milvusClient;
     private final MilvusProperties properties;
     private final DashScopeEmbeddingClient embeddingClient;
+    private final BM25Encoder bm25Encoder;
 
     /**
      * Schema常量
@@ -70,10 +73,11 @@ public class MilvusHybridStore {
     private static final String FIELD_METADATA = "metadata";
 
     public MilvusHybridStore(MilvusClientV2 milvusClient, MilvusProperties properties,
-                             DashScopeEmbeddingClient embeddingClient) {
+                             DashScopeEmbeddingClient embeddingClient, BM25Encoder bm25Encoder) {
         this.milvusClient = milvusClient;
         this.properties = properties;
         this.embeddingClient = embeddingClient;
+        this.bm25Encoder = bm25Encoder;
     }
 
     /**
@@ -347,14 +351,22 @@ public class MilvusHybridStore {
                 doc.setDenseVector(denseVector);
             }
 
+            // 生成Sparse向量（如果没有提供）
+            Map<Integer, Float> sparseVector = doc.getSparseVector();
+            if (sparseVector == null || sparseVector.isEmpty()) {
+                // 使用BM25编码
+                sparseVector = bm25Encoder.encode(doc.getText());
+                doc.setSparseVector(sparseVector);
+            }
+
             // 构建数据行（使用JsonObject）
             JsonObject row = new JsonObject();
             row.addProperty(FIELD_ID, doc.getId());
             row.addProperty(FIELD_TEXT, doc.getText());
             row.add(FIELD_DENSE_VECTOR, gson.toJsonTree(denseVector));
 
-            // Sparse向量（暂时设为空，后续任务C3实现）
-            row.add(FIELD_SPARSE_VECTOR, gson.toJsonTree(doc.getSparseVector() != null ? doc.getSparseVector() : Collections.emptyMap()));
+            // Sparse向量
+            row.add(FIELD_SPARSE_VECTOR, gson.toJsonTree(sparseVector));
 
             // 元数据
             row.add(FIELD_METADATA, gson.toJsonTree(doc.getMetadata() != null ? doc.getMetadata() : Collections.emptyMap()));
@@ -407,6 +419,78 @@ public class MilvusHybridStore {
 
             documents.add(doc);
         }
+
+        return documents;
+    }
+
+    /**
+     * Sparse向量检索（关键词检索）
+     *
+     * <p>基于BM25算法的关键词检索，适合精确匹配场景。</p>
+     *
+     * <h3>工作流程</h3>
+     * <ol>
+     *   <li>将查询文本编码为BM25稀疏向量</li>
+     *   <li>在Milvus中搜索最匹配的TopK个文档</li>
+     *   <li>按BM25分数排序返回文档</li>
+     * </ol>
+     *
+     * <h3>适用场景</h3>
+     * <ul>
+     *   <li>精确关键词匹配</li>
+     *   <li>专有名词检索</li>
+     *   <li>代码片段检索</li>
+     * </ul>
+     *
+     * <h3>使用示例</h3>
+     * <pre>{@code
+     * List<Document> results = hybridStore.searchSparse("Milvus向量数据库", 10);
+     * results.forEach(doc -> {
+     *     System.out.println("得分: " + doc.getScore());
+     *     System.out.println("文本: " + doc.getText());
+     * });
+     * }</pre>
+     *
+     * @param query 查询文本
+     * @param topK 返回前K个最相关文档
+     * @return 检索到的文档列表，按BM25分数降序排序
+     */
+    public List<Document> searchSparse(String query, int topK) {
+        log.debug("开始Sparse检索：query={}, topK={}", query, topK);
+
+        // 1. 将查询文本编码为稀疏向量
+        Map<Integer, Float> querySparseVector = bm25Encoder.encode(query);
+
+        if (querySparseVector.isEmpty()) {
+            log.warn("查询编码为空，返回空结果");
+            return Collections.emptyList();
+        }
+
+        log.debug("查询稀疏向量维度：{}", querySparseVector.size());
+
+        // 2. 转换为SparseFloatVec格式（需要SortedMap<Long, Float>）
+        SortedMap<Long, Float> sparseMap = new TreeMap<>();
+        for (Map.Entry<Integer, Float> entry : querySparseVector.entrySet()) {
+            sparseMap.put(entry.getKey().longValue(), entry.getValue());
+        }
+        SparseFloatVec sparseVec = new SparseFloatVec(sparseMap);
+
+        // 3. 构建搜索参数
+        SearchReq searchReq = SearchReq.builder()
+            .collectionName(properties.getCollectionName())
+            .data(Collections.singletonList(sparseVec))
+            .annsField(FIELD_SPARSE_VECTOR)
+            .topK(topK)
+            .outputFields(Arrays.asList(FIELD_ID, FIELD_TEXT, FIELD_METADATA))
+            .build();
+
+        // 4. 执行搜索
+        SearchResp searchResp = milvusClient.search(searchReq);
+
+        // 5. 解析结果
+        List<Document> documents = parseSearchResults(searchResp);
+
+        log.info("Sparse检索完成：返回{}个文档", documents.size());
 
         return documents;
     }

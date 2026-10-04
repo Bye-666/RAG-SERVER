@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mvn clean *)"
+      "Bash(mvn clean *)",
+      "Bash(git commit -m 'feat: 完成任务C2 - Dense检索实现 *)"
     ]
   }
 }

@@ -1,6 +1,7 @@
 package com.ragserver.config;
 
 import com.ragserver.ai.dashscope.DashScopeEmbeddingClient;
+import com.ragserver.retrieval.BM25Encoder;
 import com.ragserver.retrieval.milvus.MilvusHybridStore;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
@@ -56,12 +57,14 @@ public class MilvusConfig {
      *
      * @param milvusClient Milvus客户端
      * @param embeddingClient DashScope Embedding客户端
+     * @param bm25Encoder BM25编码器
      * @return MilvusHybridStore实例
      */
     @Bean
     public MilvusHybridStore milvusHybridStore(MilvusClientV2 milvusClient,
-                                               DashScopeEmbeddingClient embeddingClient) {
-        MilvusHybridStore store = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient);
+                                               DashScopeEmbeddingClient embeddingClient,
+                                               BM25Encoder bm25Encoder) {
+        MilvusHybridStore store = new MilvusHybridStore(milvusClient, milvusProperties, embeddingClient, bm25Encoder);
 
         // 如果配置了自动创建Collection，则初始化
         if (milvusProperties.getAutoCreateCollection()) {
