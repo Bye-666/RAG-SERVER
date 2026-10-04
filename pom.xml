@@ -158,15 +158,13 @@
 
         <!--
             Apache PDFBox：PDF文档解析和图片提取
-            注意：暂时注释，将在阶段D（文档摄取）时启用
+            阶段D（文档摄取）已启用
         -->
-        <!--
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
             <version>${pdfbox.version}</version>
         </dependency>
-        -->
 
         <!--
             ========================================
