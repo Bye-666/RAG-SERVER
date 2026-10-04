@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 01:26:00",
-  "currentPhase": "B",
-  "currentTask": "B2",
+  "lastUpdated": "2026-10-04 12:31:18",
+  "currentPhase": "D",
+  "currentTask": "D4",
   "tasks": {
     "A1": {
       "name": "Maven项目初始化",
@@ -89,11 +89,13 @@
       "name": "API限流与重试",
       "phase": "B",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:15",
+      "files": [
+        "src/main/java/com/ragserver/ai/dashscope/RateLimiter.java"
+      ],
+      "notes": "API限流与重试机制实现完成"
     },
     "B4": {
       "name": "DashScope Vision LLM",
@@ -109,88 +111,106 @@
       "name": "Milvus连接与Schema创建",
       "phase": "C",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:17",
+      "files": [
+        "src/main/java/com/ragserver/config/MilvusConfig.java",
+        "src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java"
+      ],
+      "notes": "Milvus连接与Schema创建完成"
     },
     "C2": {
       "name": "Dense检索实现",
       "phase": "C",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:19",
+      "files": [
+        "src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java"
+      ],
+      "notes": "Dense检索实现完成"
     },
     "C3": {
       "name": "Sparse检索实现(BM25)",
       "phase": "C",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:20",
+      "files": [
+        "src/main/java/com/ragserver/retrieval/BM25Encoder.java",
+        "src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java"
+      ],
+      "notes": "Sparse检索实现(BM25)完成"
     },
     "C4": {
       "name": "RRF融合实现",
       "phase": "C",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:21",
+      "files": [
+        "src/main/java/com/ragserver/retrieval/RRFFusion.java"
+      ],
+      "notes": "RRF融合实现完成"
     },
     "C5": {
       "name": "批量Upsert方法",
       "phase": "C",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:22",
+      "files": [
+        "src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java"
+      ],
+      "notes": "批量Upsert方法完成"
     },
     "D1": {
       "name": "PDF加载",
       "phase": "D",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:24",
+      "files": [
+        "src/main/java/com/ragserver/ingestion/loader/PdfLoader.java"
+      ],
+      "notes": "PDF加载实现完成"
     },
     "D2": {
       "name": "RecursiveSplitter实现",
       "phase": "D",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:26",
+      "files": [
+        "src/main/java/com/ragserver/ingestion/splitter/RecursiveSplitter.java"
+      ],
+      "notes": "RecursiveSplitter实现完成"
     },
     "D3": {
       "name": "ChunkRefiner实现",
       "phase": "D",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 12:28:27",
+      "files": [
+        "src/main/java/com/ragserver/ingestion/transformer/ChunkRefiner.java"
+      ],
+      "notes": "ChunkRefiner实现完成"
     },
     "D4": {
       "name": "MetadataEnricher实现",
       "phase": "D",
       "priority": "P0",
-      "status": "pending",
-      "startedAt": null,
+      "status": "in-progress",
+      "startedAt": "2026-10-04 12:31:18",
       "completedAt": null,
       "files": [],
       "notes": ""
@@ -568,10 +588,11 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 5,
+    "completed": 14,
     "inProgress": 0,
-    "pending": 48,
+    "pending": 38,
     "blocked": 0,
-    "skipped": 0
+    "skipped": 0,
+    "in-progress": null
   }
 }

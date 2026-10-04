@@ -3,7 +3,19 @@
     "allow": [
       "Bash(mvn clean *)",
       "Bash(git commit -m 'feat: 完成任务C2 - Dense检索实现 *)",
-      "Bash(git commit -m 'feat: 完成任务C3 - Sparse检索实现（BM25） *)"
+      "Bash(git commit -m 'feat: 完成任务C3 - Sparse检索实现（BM25） *)",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete B3 --files \"src/main/java/com/ragserver/ai/dashscope/RateLimiter.java\" --notes \"API限流与重试机制实现完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete C1 --files \"src/main/java/com/ragserver/config/MilvusConfig.java,src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java\" --notes \"Milvus连接与Schema创建完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete C2 --files \"src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java\" --notes \"Dense检索实现完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete C3 --files \"src/main/java/com/ragserver/retrieval/BM25Encoder.java,src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java\" --notes \"Sparse检索实现\\(BM25\\)完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete C4 --files \"src/main/java/com/ragserver/retrieval/RRFFusion.java\" --notes \"RRF融合实现完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete C5 --files \"src/main/java/com/ragserver/retrieval/milvus/MilvusHybridStore.java\" --notes \"批量Upsert方法完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete D1 --files \"src/main/java/com/ragserver/ingestion/loader/PdfLoader.java\" --notes \"PDF加载实现完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete D2 --files \"src/main/java/com/ragserver/ingestion/splitter/RecursiveSplitter.java\" --notes \"RecursiveSplitter实现完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs complete D3 --files \"src/main/java/com/ragserver/ingestion/transformer/ChunkRefiner.java\" --notes \"ChunkRefiner实现完成\")",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs status)",
+      "Edit(/.claude/skills/dev-rag-server/**)",
+      "Bash(node .claude/skills/dev-rag-server/dev-driver.mjs start D4)"
     ]
   }
 }

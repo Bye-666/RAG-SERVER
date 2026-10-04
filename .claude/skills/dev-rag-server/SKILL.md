@@ -41,9 +41,14 @@ version: 2.0.0
 **工作流程优化**：
 ```
 v1.0: 手动编译 → 手动测试 → 手动提交 → 手动标记完成
-v2.0: 自动编译 → 自动测试 → 确认提交 → 自动完成
-      ⏱️ 节省90%重复操作时间
+v2.0: 自动编译 → 自动测试 → 确认提交 → Claude必须执行complete命令
+      ⏱️ 节省重复操作时间
 ```
+
+**Claude执行规范**：
+- 每次git commit后，必须立即运行`dev-driver.mjs complete`命令
+- 命令格式：`node dev-driver.mjs complete [任务ID] --files "文件列表" --notes "说明"`
+- 不执行此命令会导致进度跟踪失效
 
 ### v1.0（手动审核版）
 **发布日期**：2026-01-XX
@@ -106,6 +111,34 @@ Agent自动：
 3. 继续执行v2.0自动化流程
 
 ## 📖 v2.0 使用指南
+
+### ⚠️ CLAUDE必须执行的关键步骤
+
+**每完成一个任务后，必须立即执行以下命令更新进度**：
+
+```bash
+node .claude/skills/dev-rag-server/dev-driver.mjs complete [任务ID] \
+  --files "生成的文件列表" \
+  --notes "任务完成说明"
+```
+
+**示例**：
+```bash
+# 完成任务D4后
+node .claude/skills/dev-rag-server/dev-driver.mjs complete D4 \
+  --files "src/main/java/com/ragserver/ingestion/transformer/MetadataEnricher.java" \
+  --notes "MetadataEnricher实现完成，支持文档元数据添加"
+```
+
+**为什么必须执行**：
+- ✅ 保持进度文件（task-tracker.json）与代码同步
+- ✅ 自动生成进度报告（progress.md）
+- ✅ 新对话可以正确恢复进度
+- ✅ 避免重复开发已完成的任务
+
+**执行时机**：Git提交之后立即执行
+
+---
 
 ### 基本命令
 
@@ -187,10 +220,17 @@ git commit -m "feat: 完成任务C2 - Dense检索实现..."
 git push origin main
 ```
 
-#### 阶段5：标记完成（自动）
+#### 阶段5：标记完成（🔴 必须执行）
 ```bash
-node .claude/skills/dev-rag-server/dev-driver.mjs complete C2
+node .claude/skills/dev-rag-server/dev-driver.mjs complete C2 \
+  --files "生成的文件列表（逗号分隔）" \
+  --notes "任务完成说明"
 ```
+
+**🔴 重要**：这一步是必须的！不执行会导致：
+- ❌ 进度文件过时
+- ❌ 新对话无法正确恢复
+- ❌ 可能重复开发已完成的任务
 
 更新进度文件，生成进度报告。
 
