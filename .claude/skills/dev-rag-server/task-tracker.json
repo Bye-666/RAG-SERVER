@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 12:57:25",
+  "lastUpdated": "2026-10-04 13:20:31",
   "currentPhase": "D",
-  "currentTask": "D6",
+  "currentTask": "D8",
   "tasks": {
     "A1": {
       "name": "Maven项目初始化",
@@ -258,11 +258,14 @@
       "name": "增量摄取与去重",
       "phase": "D",
       "priority": "P0",
-      "status": "pending",
-      "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "status": "completed",
+      "startedAt": "2026-10-04 13:17:53",
+      "completedAt": "2026-10-04 13:20:31",
+      "files": [
+        "src/main/java/com/ragserver/ingestion/loader/FileIntegrityService.java",
+        "src/test/java/com/ragserver/ingestion/loader/FileIntegrityServiceTest.java"
+      ],
+      "notes": "增量摄取与去重实现完成。基于SHA-256哈希实现文件去重，支持重复文件跳过、文件修改检测、完整性验证，测试通过（16/16）。"
     },
     "E1": {
       "name": "HybridRetriever实现",
@@ -597,9 +600,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 17,
+    "completed": 18,
     "inProgress": 0,
-    "pending": 36,
+    "pending": 35,
     "blocked": 0,
     "skipped": 0
   }
