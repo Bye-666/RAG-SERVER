@@ -46,9 +46,12 @@ v2.0: 自动编译 → 自动测试 → 确认提交 → Claude必须执行compl
 ```
 
 **Claude执行规范**：
-- 每次git commit后，必须立即运行`dev-driver.mjs complete`命令
-- 命令格式：`node dev-driver.mjs complete [任务ID] --files "文件列表" --notes "说明"`
-- 不执行此命令会导致进度跟踪失效
+- 代码完成后，按照以下顺序执行三个命令（不要分离）：
+  1. `git commit` - 提交代码
+  2. `node dev-driver.mjs complete [任务ID]` - 更新进度
+  3. `git commit` - 提交进度文件
+- 三步连续执行，保证代码和进度同步
+- 不要在步骤1后就停止，必须完成全部三步
 
 ### v1.0（手动审核版）
 **发布日期**：2026-01-XX
@@ -198,7 +201,7 @@ mvn test
 - 如果测试失败，Agent自动修复
 - 最多重试3次
 
-#### 阶段4：提交确认（半自动）
+#### 阶段4：提交代码（半自动）
 **暂停点** ⏸️
 Agent显示：
 ```
@@ -213,26 +216,29 @@ Agent显示：
 
 你说：`提交代码`
 
-Agent自动：
+Agent自动执行：
 ```bash
+# 步骤1: 提交代码
 git add .
 git commit -m "feat: 完成任务C2 - Dense检索实现..."
-git push origin main
-```
 
-#### 阶段5：标记完成（🔴 必须执行）
-```bash
+# 步骤2: 立即更新任务进度（必须）
 node .claude/skills/dev-rag-server/dev-driver.mjs complete C2 \
-  --files "生成的文件列表（逗号分隔）" \
+  --files "生成的文件列表" \
   --notes "任务完成说明"
+
+# 步骤3: 提交进度文件（必须）
+git add .claude/skills/dev-rag-server/task-tracker.json \
+        .claude/skills/dev-rag-server/progress.md \
+        .claude/settings.json
+git commit -m "chore: 更新任务C2进度"
 ```
 
-**🔴 重要**：这一步是必须的！不执行会导致：
-- ❌ 进度文件过时
-- ❌ 新对话无法正确恢复
-- ❌ 可能重复开发已完成的任务
-
-更新进度文件，生成进度报告。
+**🔴 重要**：这三个步骤必须连续执行，不要分离！
+- 步骤1提交代码
+- 步骤2更新进度文件
+- 步骤3提交进度文件
+- 这样保证代码和进度始终同步
 
 ### v2.0 vs v1.0 对比
 
