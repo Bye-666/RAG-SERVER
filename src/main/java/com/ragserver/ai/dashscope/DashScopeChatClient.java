@@ -50,6 +50,7 @@ public class DashScopeChatClient {
 
     private final DashScopeProperties properties;
     private final RestTemplate restTemplate;
+    private final RateLimiter rateLimiter;
 
     /**
      * Chat API端点
@@ -69,6 +70,8 @@ public class DashScopeChatClient {
     public DashScopeChatClient(DashScopeProperties properties, RestTemplate restTemplate) {
         this.properties = properties;
         this.restTemplate = restTemplate;
+        this.rateLimiter = new RateLimiter(properties.getQps());
+        log.info("DashScopeChatClient初始化完成，QPS限制：{}", properties.getQps());
     }
 
     /**
@@ -146,6 +149,9 @@ public class DashScopeChatClient {
      * @return 聊天响应
      */
     private ChatResponse doCall(ChatRequest request) {
+        // 限流：获取令牌（可能阻塞等待）
+        rateLimiter.acquire();
+
         // 构建请求URL
         String url = properties.getBaseUrl() + CHAT_ENDPOINT;
 

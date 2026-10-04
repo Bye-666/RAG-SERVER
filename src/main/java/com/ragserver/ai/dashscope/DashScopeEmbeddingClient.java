@@ -50,6 +50,7 @@ public class DashScopeEmbeddingClient {
     private final DashScopeProperties properties;
     private final RestTemplate restTemplate;
     private final ExecutorService executorService;
+    private final RateLimiter rateLimiter;
 
     /**
      * Embedding API端点
@@ -74,6 +75,7 @@ public class DashScopeEmbeddingClient {
     public DashScopeEmbeddingClient(DashScopeProperties properties, RestTemplate restTemplate) {
         this.properties = properties;
         this.restTemplate = restTemplate;
+        this.rateLimiter = new RateLimiter(properties.getQps());
 
         // 创建线程池用于并发调用（核心线程数=CPU核心数，最大线程数=核心数*2）
         int corePoolSize = Runtime.getRuntime().availableProcessors();
@@ -87,7 +89,8 @@ public class DashScopeEmbeddingClient {
             new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
-        log.info("DashScopeEmbeddingClient初始化完成，线程池大小：{}/{}", corePoolSize, maxPoolSize);
+        log.info("DashScopeEmbeddingClient初始化完成，线程池大小：{}/{}，QPS限制：{}",
+            corePoolSize, maxPoolSize, properties.getQps());
     }
 
     /**
@@ -256,6 +259,9 @@ public class DashScopeEmbeddingClient {
      * @return Embedding响应
      */
     private EmbeddingResponse doCall(EmbeddingRequest request) {
+        // 限流：获取令牌（可能阻塞等待）
+        rateLimiter.acquire();
+
         // 构建请求URL
         String url = properties.getBaseUrl() + EMBEDDING_ENDPOINT;
 
