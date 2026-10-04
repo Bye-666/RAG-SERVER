@@ -149,4 +149,13 @@ public class MilvusProperties {
      * <p>DashScope的text-embedding-v4已归一化，使用COSINE或IP都可以。</p>
      */
     private String metric = "COSINE";
+
+    /**
+     * Dense向量维度
+     *
+     * <p>默认值：2048</p>
+     *
+     * <p>DashScope text-embedding-v4输出2048维向量。</p>
+     */
+    private Integer denseVectorDimension = 2048;
 }

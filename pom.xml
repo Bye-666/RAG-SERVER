@@ -125,13 +125,12 @@
             Milvus Java SDK：支持混合检索（Dense + Sparse）
             注意：暂时注释，将在阶段C（Milvus集成）时启用
         -->
-        <!--
+        <!-- Milvus向量数据库SDK -->
         <dependency>
             <groupId>io.milvus</groupId>
             <artifactId>milvus-sdk-java</artifactId>
             <version>${milvus.version}</version>
         </dependency>
-        -->
 
         <!--
             ========================================
@@ -226,27 +225,14 @@
             Testcontainers Milvus：集成测试用Milvus容器
             注意：暂时注释，将在阶段C（Milvus集成）时启用
         -->
-        <!--
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>milvus</artifactId>
-            <version>1.19.3</version>
-            <scope>test</scope>
-        </dependency>
-        -->
-
-        <!--
-            Testcontainers JUnit：Testcontainers的JUnit 5集成
-            注意：暂时注释，将在阶段C时启用
-        -->
-        <!--
+        <!-- Testcontainers JUnit：Testcontainers的JUnit 5集成 -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>1.19.3</version>
             <scope>test</scope>
         </dependency>
-        -->
+
     </dependencies>
 
     <!--
