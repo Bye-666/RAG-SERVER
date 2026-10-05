@@ -39,6 +39,9 @@ class DocumentServiceTest {
     @MockBean
     private MilvusHybridStore vectorStore;
 
+    @MockBean
+    private ImageStorageService imageStorageService;
+
     @BeforeEach
     void setUp() {
         // 清空测试数据
@@ -180,6 +183,38 @@ class DocumentServiceTest {
         assertThat(stats).isNotNull();
         assertThat(stats.getVectorCount()).isEqualTo(0L);
         assertThat(stats.getTotalDocuments()).isEqualTo(0L);
+    }
+
+    /**
+     * 测试：批量删除Collection
+     */
+    @Test
+    void testDeleteCollection() {
+        // Given: Mock图片删除服务
+        when(imageStorageService.deleteByCollection(anyString())).thenReturn(5);
+
+        // When: 删除Collection
+        documentService.deleteCollection("test_collection");
+
+        // Then: 调用了相关删除方法
+        verify(milvusClient).delete(any());
+        verify(imageStorageService).deleteByCollection("test_collection");
+    }
+
+    /**
+     * 测试：批量删除Collection - Milvus失败不影响其他清理
+     */
+    @Test
+    void testDeleteCollectionWithMilvusFailure() {
+        // Given: Milvus删除失败
+        when(milvusClient.delete(any())).thenThrow(new RuntimeException("Milvus error"));
+        when(imageStorageService.deleteByCollection(anyString())).thenReturn(3);
+
+        // When: 删除Collection
+        documentService.deleteCollection("test_collection");
+
+        // Then: 图片仍然被删除
+        verify(imageStorageService).deleteByCollection("test_collection");
     }
 
     /**

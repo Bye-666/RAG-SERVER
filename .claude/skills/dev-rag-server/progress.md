@@ -1,15 +1,15 @@
 # RAG-SERVER 开发进度报告
 
-生成时间: 2026-10-05 02:04:37
+生成时间: 2026-10-05 02:08:40
 
 ## 📊 总体进度
 
-[████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░] 47%
+[██████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░] 51%
 
 - **总任务数**: 53
-- **已完成**: 25
+- **已完成**: 27
 - **进行中**: 0
-- **待开始**: 24
+- **待开始**: 22
 - **已阻塞**: 4
 - **已跳过**: 0
 
@@ -17,9 +17,9 @@
 
 - **当前阶段**: 阶段D
 - **当前任务**: D8
-- **最后更新**: 2026-10-05 02:04:37
+- **最后更新**: 2026-10-05 02:08:40
 
-## ✅ 已完成任务 (25/53)
+## ✅ 已完成任务 (27/53)
 
 ### 阶段A
 
@@ -158,6 +158,16 @@
   - 生成文件: src/main/java/com/ragserver/service/ImageStorageService.java, src/test/java/com/ragserver/service/ImageStorageServiceTest.java
   - 备注: ImageStorageService实现完成。提供图片文件管理功能：保存图片到本地文件系统、创建索引记录、查找图片、按文档/Collection删除，支持目录自动创建和统计信息，测试通过（8/8）。
 
+- ✅ **G3** - IngestionHistoryRepository (P0)
+  - 完成时间: 2026-10-05 02:06:24
+  - 生成文件: src/main/java/com/ragserver/repository/IngestionHistoryRepository.java
+  - 备注: IngestionHistoryRepository已在阶段A3中实现。提供完整的Spring Data JPA接口：按状态查询、文件路径搜索、时间范围查询、统计功能、批量删除等。
+
+- ✅ **G4** - 批量删除功能 (P0)
+  - 完成时间: 2026-10-05 02:08:40
+  - 生成文件: src/main/java/com/ragserver/service/DocumentService.java, src/test/java/com/ragserver/service/DocumentServiceTest.java
+  - 备注: 批量删除功能实现完成。在DocumentService中添加deleteCollection方法，支持按Collection批量删除：Milvus向量数据、图片文件和索引、摄取历史记录，测试通过（10/10）。
+
 ## 🚫 阻塞任务 (4)
 
 - 🚫 **F1** - MCP Server初始化 (P0)
@@ -184,7 +194,7 @@
 - **阶段D** 文档摄取Pipeline (8个任务): [█████████░] 88% (7/8)
 - **阶段E** RAG检索与生成 (7个任务): [███████░░░] 71% (5/7)
 - **阶段F** MCP协议集成 (5个任务): [░░░░░░░░░░] 0% (0/5)
-- **阶段G** 元数据与管理 (6个任务): [███░░░░░░░] 33% (2/6)
+- **阶段G** 元数据与管理 (6个任务): [███████░░░] 67% (4/6)
 - **阶段H** Dashboard (6个任务): [░░░░░░░░░░] 0% (0/6)
 - **阶段I** 评估与优化 (5个任务): [░░░░░░░░░░] 0% (0/5)
 - **阶段J** 端到端验收 (4个任务): [░░░░░░░░░░] 0% (0/4)

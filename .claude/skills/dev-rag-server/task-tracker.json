@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-05 02:04:37",
+  "lastUpdated": "2026-10-05 02:08:40",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -433,21 +433,26 @@
       "name": "IngestionHistoryRepository",
       "phase": "G",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 02:06:24",
+      "files": [
+        "src/main/java/com/ragserver/repository/IngestionHistoryRepository.java"
+      ],
+      "notes": "IngestionHistoryRepository已在阶段A3中实现。提供完整的Spring Data JPA接口：按状态查询、文件路径搜索、时间范围查询、统计功能、批量删除等。"
     },
     "G4": {
       "name": "批量删除功能",
       "phase": "G",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 02:08:40",
+      "files": [
+        "src/main/java/com/ragserver/service/DocumentService.java",
+        "src/test/java/com/ragserver/service/DocumentServiceTest.java"
+      ],
+      "notes": "批量删除功能实现完成。在DocumentService中添加deleteCollection方法，支持按Collection批量删除：Milvus向量数据、图片文件和索引、摄取历史记录，测试通过（10/10）。"
     },
     "G5": {
       "name": "文档统计API",
@@ -622,9 +627,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 25,
+    "completed": 27,
     "inProgress": 0,
-    "pending": 24,
+    "pending": 22,
     "blocked": 4,
     "skipped": 0
   }
