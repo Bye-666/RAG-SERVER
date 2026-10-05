@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-05 02:00:46",
+  "lastUpdated": "2026-10-05 02:04:37",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -420,11 +420,14 @@
       "name": "ImageStorage实现",
       "phase": "G",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 02:04:37",
+      "files": [
+        "src/main/java/com/ragserver/service/ImageStorageService.java",
+        "src/test/java/com/ragserver/service/ImageStorageServiceTest.java"
+      ],
+      "notes": "ImageStorageService实现完成。提供图片文件管理功能：保存图片到本地文件系统、创建索引记录、查找图片、按文档/Collection删除，支持目录自动创建和统计信息，测试通过（8/8）。"
     },
     "G3": {
       "name": "IngestionHistoryRepository",
@@ -619,9 +622,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 24,
+    "completed": 25,
     "inProgress": 0,
-    "pending": 25,
+    "pending": 24,
     "blocked": 4,
     "skipped": 0
   }
