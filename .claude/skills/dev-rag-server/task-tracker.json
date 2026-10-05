@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-05 03:50:52",
+  "lastUpdated": "2026-10-05 05:04:58",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -569,21 +569,26 @@
       "name": "EvaluationService实现",
       "phase": "I",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 05:02:59",
+      "files": [
+        "src/main/java/com/ragserver/service/EvaluationService.java",
+        "src/test/java/com/ragserver/service/EvaluationServiceTest.java"
+      ],
+      "notes": "EvaluationService实现完成。提供批量评估功能：加载黄金测试集、执行RAG查询、计算评估指标（Hit Rate、MRR、NDCG等）、生成评估报告，测试通过（5/5）。"
     },
     "I4": {
       "name": "回归测试基线",
       "phase": "I",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 05:04:58",
+      "files": [
+        "src/test/java/com/ragserver/RagQualityBaselineTest.java"
+      ],
+      "notes": "回归测试基线建立完成。定义质量基线（Hit@5≥0.85、MRR≥0.70、NDCG@10≥0.75等），支持模拟数据和真实数据两种模式，提供详细的评估报告输出，测试通过（2/2）。"
     },
     "I5": {
       "name": "性能优化",
@@ -638,9 +643,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 31,
+    "completed": 33,
     "inProgress": 0,
-    "pending": 15,
+    "pending": 13,
     "blocked": 4,
     "skipped": 3
   }
