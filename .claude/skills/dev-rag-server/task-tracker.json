@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-05 02:08:40",
+  "lastUpdated": "2026-10-05 02:11:34",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -458,11 +458,14 @@
       "name": "文档统计API",
       "phase": "G",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 02:11:34",
+      "files": [
+        "src/main/java/com/ragserver/controller/StatsController.java",
+        "src/test/java/com/ragserver/controller/StatsControllerTest.java"
+      ],
+      "notes": "文档统计API实现完成。创建StatsController提供REST接口：/api/stats/overview（系统总览统计）、/api/stats/collections（Collection统计），支持异常处理，测试通过（4/4）。"
     },
     "G6": {
       "name": "搜索历史记录",
@@ -627,9 +630,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 27,
+    "completed": 28,
     "inProgress": 0,
-    "pending": 22,
+    "pending": 21,
     "blocked": 4,
     "skipped": 0
   }

@@ -1,0 +1,154 @@
+package com.ragserver.controller;
+
+import com.ragserver.service.DocumentService;
+import com.ragserver.service.ImageStorageService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 统计信息API
+ *
+ * <p>提供系统统计信息的REST接口：</p>
+ * <ul>
+ *   <li>总览统计：文档数、向量数、图片数等</li>
+ *   <li>Collection统计：各Collection的详细信息</li>
+ * </ul>
+ *
+ * <h3>API端点</h3>
+ * <pre>
+ * GET /api/stats/overview    - 获取系统总览统计
+ * GET /api/stats/collections - 获取Collection统计
+ * </pre>
+ *
+ * <h3>使用示例</h3>
+ * <pre>
+ * curl http://localhost:8080/api/stats/overview
+ * {
+ *   "totalDocuments": 100,
+ *   "successDocuments": 95,
+ *   "failedDocuments": 5,
+ *   "vectorCount": 1500,
+ *   "imageCount": 250
+ * }
+ * </pre>
+ *
+ * @author RAG-SERVER开发团队
+ * @since 1.0.0
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/stats")
+public class StatsController {
+
+    private final DocumentService documentService;
+    private final ImageStorageService imageStorageService;
+
+    public StatsController(DocumentService documentService,
+                          ImageStorageService imageStorageService) {
+        this.documentService = documentService;
+        this.imageStorageService = imageStorageService;
+    }
+
+    /**
+     * 获取系统总览统计
+     *
+     * <p>返回系统级别的统计信息。</p>
+     *
+     * <h3>响应示例</h3>
+     * <pre>{@code
+     * {
+     *   "totalDocuments": 100,
+     *   "successDocuments": 95,
+     *   "failedDocuments": 5,
+     *   "vectorCount": 1500,
+     *   "imageCount": 250
+     * }
+     * }</pre>
+     *
+     * @return 统计信息
+     */
+    @GetMapping("/overview")
+    public ResponseEntity<Map<String, Object>> getOverview() {
+        log.info("获取系统总览统计");
+
+        try {
+            // 1. 获取Collection统计
+            DocumentService.CollectionStats collectionStats = documentService.getCollectionStats();
+
+            // 2. 获取图片统计
+            ImageStorageService.StorageStats storageStats = imageStorageService.getStats();
+
+            // 3. 构建响应
+            Map<String, Object> overview = new HashMap<>();
+            overview.put("totalDocuments", collectionStats.getTotalDocuments());
+            overview.put("successDocuments", collectionStats.getSuccessDocuments());
+            overview.put("failedDocuments", collectionStats.getFailedDocuments());
+            overview.put("vectorCount", collectionStats.getVectorCount());
+            overview.put("imageCount", storageStats.getTotalImages());
+
+            log.info("系统总览统计：文档数={}, 向量数={}, 图片数={}",
+                    collectionStats.getTotalDocuments(),
+                    collectionStats.getVectorCount(),
+                    storageStats.getTotalImages());
+
+            return ResponseEntity.ok(overview);
+
+        } catch (Exception e) {
+            log.error("获取统计信息失败：{}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "获取统计信息失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取Collection统计
+     *
+     * <p>返回Collection级别的详细统计信息。</p>
+     *
+     * <h3>响应示例</h3>
+     * <pre>{@code
+     * {
+     *   "collectionName": "rag_knowledge_hub_dev",
+     *   "totalDocuments": 100,
+     *   "successDocuments": 95,
+     *   "failedDocuments": 5,
+     *   "vectorCount": 1500
+     * }
+     * }</pre>
+     *
+     * @return Collection统计信息
+     */
+    @GetMapping("/collections")
+    public ResponseEntity<Map<String, Object>> getCollections() {
+        log.info("获取Collection统计");
+
+        try {
+            // 获取Collection统计
+            DocumentService.CollectionStats stats = documentService.getCollectionStats();
+
+            // 构建响应
+            Map<String, Object> collections = new HashMap<>();
+            collections.put("collectionName", "rag_knowledge_hub_dev"); // 从配置获取
+            collections.put("totalDocuments", stats.getTotalDocuments());
+            collections.put("successDocuments", stats.getSuccessDocuments());
+            collections.put("failedDocuments", stats.getFailedDocuments());
+            collections.put("vectorCount", stats.getVectorCount());
+
+            log.info("Collection统计：文档数={}, 向量数={}",
+                    stats.getTotalDocuments(), stats.getVectorCount());
+
+            return ResponseEntity.ok(collections);
+
+        } catch (Exception e) {
+            log.error("获取Collection统计失败：{}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "获取Collection统计失败：" + e.getMessage()));
+        }
+    }
+}
