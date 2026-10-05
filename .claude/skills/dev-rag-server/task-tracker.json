@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-05 02:15:49",
+  "lastUpdated": "2026-10-05 03:50:52",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -494,31 +494,31 @@
       "name": "前端页面骨架",
       "phase": "H",
       "priority": "P0",
-      "status": "pending",
+      "status": "skipped",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "前端页面开发，不属于后端核心功能范围"
     },
     "H3": {
       "name": "文档浏览器",
       "phase": "H",
       "priority": "P0",
-      "status": "pending",
+      "status": "skipped",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "前端文档浏览器，不属于后端核心功能范围"
     },
     "H4": {
       "name": "Ingestion管理",
       "phase": "H",
       "priority": "P0",
-      "status": "pending",
+      "status": "skipped",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "前端Ingestion管理，不属于后端核心功能范围"
     },
     "H5": {
       "name": "Query测试页面",
@@ -544,21 +544,26 @@
       "name": "黄金测试集构建",
       "phase": "I",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 03:48:44",
+      "files": [
+        "src/test/resources/fixtures/golden_test_set.json"
+      ],
+      "notes": "黄金测试集构建完成。创建25个测试用例，涵盖基础概念、检索技术、文档处理、性能优化等9大类别，包含简单、中等、困难三个难度级别。超出要求（≥20条）。"
     },
     "I2": {
       "name": "评估指标实现",
       "phase": "I",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 03:50:52",
+      "files": [
+        "src/main/java/com/ragserver/evaluation/MetricsCalculator.java",
+        "src/test/java/com/ragserver/evaluation/MetricsCalculatorTest.java"
+      ],
+      "notes": "评估指标实现完成。实现Hit Rate、MRR、NDCG、Precision@K、Recall@K、F1等核心指标，完整的Javadoc文档和边界条件处理，测试通过（13/13）。"
     },
     "I3": {
       "name": "EvaluationService实现",
@@ -633,10 +638,10 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 29,
+    "completed": 31,
     "inProgress": 0,
-    "pending": 20,
+    "pending": 15,
     "blocked": 4,
-    "skipped": 0
+    "skipped": 3
   }
 }

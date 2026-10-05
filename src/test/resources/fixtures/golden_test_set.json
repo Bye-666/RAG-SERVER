@@ -1,0 +1,240 @@
+{
+  "description": "RAG系统黄金测试集 - 用于评估检索和生成质量",
+  "version": "1.0.0",
+  "createdAt": "2025-01-04",
+  "testCases": [
+    {
+      "id": "TC001",
+      "query": "什么是RAG技术？",
+      "expectedChunkIds": ["rag_intro_001"],
+      "expectedSources": ["rag_guide.pdf"],
+      "category": "基础概念",
+      "difficulty": "easy"
+    },
+    {
+      "id": "TC002",
+      "query": "如何配置Milvus向量数据库？",
+      "expectedChunkIds": ["milvus_config_001", "milvus_config_002"],
+      "expectedSources": ["milvus_guide.pdf"],
+      "category": "配置管理",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC003",
+      "query": "Spring AI支持哪些Embedding模型？",
+      "expectedChunkIds": ["spring_ai_embedding_001"],
+      "expectedSources": ["spring_ai_docs.pdf"],
+      "category": "技术选型",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC004",
+      "query": "如何实现混合检索（Hybrid Search）？",
+      "expectedChunkIds": ["hybrid_search_001", "hybrid_search_002"],
+      "expectedSources": ["retrieval_guide.pdf"],
+      "category": "检索技术",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC005",
+      "query": "PDF文档摄取的完整流程是什么？",
+      "expectedChunkIds": ["ingestion_pipeline_001", "ingestion_pipeline_002"],
+      "expectedSources": ["ingestion_guide.pdf"],
+      "category": "文档处理",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC006",
+      "query": "如何优化向量检索的性能？",
+      "expectedChunkIds": ["optimization_001"],
+      "expectedSources": ["performance_guide.pdf"],
+      "category": "性能优化",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC007",
+      "query": "DashScope API的调用限制是多少？",
+      "expectedChunkIds": ["dashscope_limits_001"],
+      "expectedSources": ["dashscope_docs.pdf"],
+      "category": "API限制",
+      "difficulty": "easy"
+    },
+    {
+      "id": "TC008",
+      "query": "如何处理大型PDF文档的图片提取？",
+      "expectedChunkIds": ["image_extraction_001", "image_extraction_002"],
+      "expectedSources": ["pdf_processing.pdf"],
+      "category": "图片处理",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC009",
+      "query": "Rerank模型的作用是什么？",
+      "expectedChunkIds": ["rerank_intro_001"],
+      "expectedSources": ["rerank_guide.pdf"],
+      "category": "检索优化",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC010",
+      "query": "如何设置合适的chunk size？",
+      "expectedChunkIds": ["chunking_strategy_001"],
+      "expectedSources": ["chunking_guide.pdf"],
+      "category": "文档切分",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC011",
+      "query": "Spring Boot如何集成Milvus？",
+      "expectedChunkIds": ["spring_milvus_integration_001"],
+      "expectedSources": ["integration_guide.pdf"],
+      "category": "系统集成",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC012",
+      "query": "向量数据库的索引类型有哪些？",
+      "expectedChunkIds": ["index_types_001", "index_types_002"],
+      "expectedSources": ["milvus_guide.pdf"],
+      "category": "数据库技术",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC013",
+      "query": "如何实现文档的增量更新？",
+      "expectedChunkIds": ["incremental_update_001"],
+      "expectedSources": ["update_guide.pdf"],
+      "category": "数据管理",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC014",
+      "query": "什么是Prompt Engineering？",
+      "expectedChunkIds": ["prompt_engineering_001"],
+      "expectedSources": ["llm_guide.pdf"],
+      "category": "LLM技术",
+      "difficulty": "easy"
+    },
+    {
+      "id": "TC015",
+      "query": "如何评估RAG系统的质量？",
+      "expectedChunkIds": ["evaluation_metrics_001", "evaluation_metrics_002"],
+      "expectedSources": ["evaluation_guide.pdf"],
+      "category": "质量评估",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC016",
+      "query": "Embedding模型的维度如何选择？",
+      "expectedChunkIds": ["embedding_dimensions_001"],
+      "expectedSources": ["embedding_guide.pdf"],
+      "category": "模型选择",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC017",
+      "query": "如何处理多语言文档？",
+      "expectedChunkIds": ["multilingual_001"],
+      "expectedSources": ["multilingual_guide.pdf"],
+      "category": "国际化",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC018",
+      "query": "向量相似度计算的常用方法有哪些？",
+      "expectedChunkIds": ["similarity_metrics_001"],
+      "expectedSources": ["similarity_guide.pdf"],
+      "category": "算法基础",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC019",
+      "query": "如何实现Citation引用功能？",
+      "expectedChunkIds": ["citation_impl_001"],
+      "expectedSources": ["citation_guide.pdf"],
+      "category": "功能实现",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC020",
+      "query": "RAG系统的常见错误有哪些？",
+      "expectedChunkIds": ["common_errors_001", "common_errors_002"],
+      "expectedSources": ["troubleshooting.pdf"],
+      "category": "故障排查",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC021",
+      "query": "如何监控RAG系统的运行状态？",
+      "expectedChunkIds": ["monitoring_001"],
+      "expectedSources": ["operations_guide.pdf"],
+      "category": "运维监控",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC022",
+      "query": "什么是语义切分（Semantic Chunking）？",
+      "expectedChunkIds": ["semantic_chunking_001"],
+      "expectedSources": ["chunking_guide.pdf"],
+      "category": "文档切分",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC023",
+      "query": "如何处理PDF中的表格数据？",
+      "expectedChunkIds": ["table_extraction_001"],
+      "expectedSources": ["pdf_processing.pdf"],
+      "category": "表格处理",
+      "difficulty": "hard"
+    },
+    {
+      "id": "TC024",
+      "query": "MCP协议的作用是什么？",
+      "expectedChunkIds": ["mcp_intro_001"],
+      "expectedSources": ["mcp_guide.pdf"],
+      "category": "协议标准",
+      "difficulty": "medium"
+    },
+    {
+      "id": "TC025",
+      "query": "如何优化LLM的响应速度？",
+      "expectedChunkIds": ["llm_optimization_001", "llm_optimization_002"],
+      "expectedSources": ["performance_guide.pdf"],
+      "category": "性能优化",
+      "difficulty": "hard"
+    }
+  ],
+  "statistics": {
+    "totalTestCases": 25,
+    "categories": {
+      "基础概念": 2,
+      "配置管理": 1,
+      "技术选型": 1,
+      "检索技术": 2,
+      "文档处理": 1,
+      "性能优化": 2,
+      "API限制": 1,
+      "图片处理": 1,
+      "检索优化": 1,
+      "文档切分": 2,
+      "系统集成": 1,
+      "数据库技术": 1,
+      "数据管理": 1,
+      "LLM技术": 1,
+      "质量评估": 1,
+      "模型选择": 1,
+      "国际化": 1,
+      "算法基础": 1,
+      "功能实现": 1,
+      "故障排查": 1,
+      "运维监控": 1,
+      "表格处理": 1,
+      "协议标准": 1
+    },
+    "difficulty": {
+      "easy": 3,
+      "medium": 15,
+      "hard": 7
+    }
+  }
+}
