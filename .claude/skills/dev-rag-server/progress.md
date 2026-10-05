@@ -1,25 +1,25 @@
 # RAG-SERVER 开发进度报告
 
-生成时间: 2026-10-04 13:49:03
+生成时间: 2026-10-05 02:00:46
 
 ## 📊 总体进度
 
-[█████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 42%
+[███████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░] 45%
 
 - **总任务数**: 53
-- **已完成**: 22
+- **已完成**: 24
 - **进行中**: 0
-- **待开始**: 31
-- **已阻塞**: 0
+- **待开始**: 25
+- **已阻塞**: 4
 - **已跳过**: 0
 
 ## 🎯 当前状态
 
 - **当前阶段**: 阶段D
 - **当前任务**: D8
-- **最后更新**: 2026-10-04 13:49:03
+- **最后更新**: 2026-10-05 02:00:46
 
-## ✅ 已完成任务 (22/53)
+## ✅ 已完成任务 (24/53)
 
 ### 阶段A
 
@@ -141,6 +141,32 @@
   - 生成文件: src/main/java/com/ragserver/service/RagService.java, src/test/java/com/ragserver/service/RagServiceTest.java
   - 备注: RagService核心实现完成。串联检索→Rerank→Prompt构建→LLM生成→Citation添加的完整RAG流程，支持多种查询模式（完整查询、仅检索、仅构建Prompt），测试通过（12/12）。
 
+- ✅ **E5** - Citation生成 (P0)
+  - 完成时间: 2026-10-04 13:50:42
+  - 生成文件: src/main/java/com/ragserver/service/PromptService.java, src/test/java/com/ragserver/service/PromptServiceTest.java
+  - 备注: Citation生成功能已在E3中实现。PromptService.buildCitations()方法支持格式化引用列表，包含文档来源、页码、章节信息，测试覆盖充分（14个测试中8个与Citation相关）。
+
+### 阶段G
+
+- ✅ **G1** - DocumentService实现 (P0)
+  - 完成时间: 2026-10-05 02:00:46
+  - 生成文件: src/main/java/com/ragserver/service/DocumentService.java, src/test/java/com/ragserver/service/DocumentServiceTest.java
+  - 备注: DocumentService实现完成。提供文档生命周期管理：列表查询、详情获取、删除（联动清理Milvus和历史记录）、Collection统计，测试通过（8/8）。
+
+## 🚫 阻塞任务 (4)
+
+- 🚫 **F1** - MCP Server初始化 (P0)
+  - 原因: MCP SDK依赖不可用（io.modelcontextprotocol.sdk:mcp在Maven仓库中不存在），需要等待SDK发布或寻找替代方案
+
+- 🚫 **F2** - query_knowledge_hub工具 (P0)
+  - 原因: 依赖F1（MCP Server初始化）
+
+- 🚫 **F3** - list_collections工具 (P0)
+  - 原因: 依赖F1（MCP Server初始化）
+
+- 🚫 **F4** - get_document_summary工具 (P0)
+  - 原因: 依赖F1（MCP Server初始化）
+
 ## 📋 阶段D待完成任务 (1)
 
 - ⏳ **D7** - ImageCaptioner实现 (P1)
@@ -151,9 +177,9 @@
 - **阶段B** DashScope集成 (4个任务): [████████░░] 75% (3/4)
 - **阶段C** Milvus集成 (5个任务): [██████████] 100% (5/5)
 - **阶段D** 文档摄取Pipeline (8个任务): [█████████░] 88% (7/8)
-- **阶段E** RAG检索与生成 (7个任务): [██████░░░░] 57% (4/7)
+- **阶段E** RAG检索与生成 (7个任务): [███████░░░] 71% (5/7)
 - **阶段F** MCP协议集成 (5个任务): [░░░░░░░░░░] 0% (0/5)
-- **阶段G** 元数据与管理 (6个任务): [░░░░░░░░░░] 0% (0/6)
+- **阶段G** 元数据与管理 (6个任务): [██░░░░░░░░] 17% (1/6)
 - **阶段H** Dashboard (6个任务): [░░░░░░░░░░] 0% (0/6)
 - **阶段I** 评估与优化 (5个任务): [░░░░░░░░░░] 0% (0/5)
 - **阶段J** 端到端验收 (4个任务): [░░░░░░░░░░] 0% (0/4)

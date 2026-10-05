@@ -1,0 +1,371 @@
+package com.ragserver.service;
+
+import com.ragserver.entity.IngestionHistory;
+import com.ragserver.repository.IngestionHistoryRepository;
+import com.ragserver.retrieval.milvus.MilvusHybridStore;
+import com.ragserver.retrieval.model.Document;
+import io.milvus.v2.client.MilvusClientV2;
+import io.milvus.v2.service.collection.request.GetCollectionStatsReq;
+import io.milvus.v2.service.collection.response.GetCollectionStatsResp;
+import io.milvus.v2.service.vector.request.DeleteReq;
+import io.milvus.v2.service.vector.request.QueryReq;
+import io.milvus.v2.service.vector.response.QueryResp;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * 文档服务
+ *
+ * <p>提供文档生命周期管理功能：</p>
+ * <ul>
+ *   <li>文档列表查询</li>
+ *   <li>文档详情获取</li>
+ *   <li>文档删除（联动清理向量库和历史记录）</li>
+ *   <li>Collection统计信息</li>
+ * </ul>
+ *
+ * <h3>使用示例</h3>
+ * <pre>{@code
+ * // 列出所有文档
+ * List<DocumentInfo> docs = documentService.listDocuments();
+ *
+ * // 获取文档详情
+ * DocumentDetail detail = documentService.getDocumentDetail("doc_123");
+ *
+ * // 删除文档
+ * documentService.deleteDocument("/path/to/document.pdf");
+ *
+ * // 获取统计信息
+ * CollectionStats stats = documentService.getCollectionStats();
+ * }</pre>
+ *
+ * @author RAG-SERVER开发团队
+ * @since 1.0.0
+ */
+@Slf4j
+@Service
+public class DocumentService {
+
+    private final MilvusClientV2 milvusClient;
+    private final MilvusHybridStore vectorStore;
+    private final IngestionHistoryRepository ingestionHistoryRepository;
+    private final String collectionName;
+
+    public DocumentService(MilvusClientV2 milvusClient,
+                          MilvusHybridStore vectorStore,
+                          IngestionHistoryRepository ingestionHistoryRepository,
+                          com.ragserver.config.MilvusProperties milvusProperties) {
+        this.milvusClient = milvusClient;
+        this.vectorStore = vectorStore;
+        this.ingestionHistoryRepository = ingestionHistoryRepository;
+        this.collectionName = milvusProperties.getCollectionName();
+    }
+
+    /**
+     * 列出所有文档
+     *
+     * <p>从摄取历史表中获取所有已处理的文档信息。</p>
+     *
+     * @return 文档信息列表
+     */
+    public List<DocumentInfo> listDocuments() {
+        log.info("列出所有文档");
+
+        try {
+            List<IngestionHistory> histories = ingestionHistoryRepository.findAll();
+
+            return histories.stream()
+                    .map(this::convertToDocumentInfo)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("列出文档失败：{}", e.getMessage(), e);
+            throw new RuntimeException("列出文档失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 根据状态列出文档
+     *
+     * @param status 摄取状态
+     * @return 文档信息列表
+     */
+    public List<DocumentInfo> listDocumentsByStatus(IngestionHistory.IngestionStatus status) {
+        log.info("列出文档：status={}", status);
+
+        try {
+            List<IngestionHistory> histories = ingestionHistoryRepository.findByStatusOrderByProcessedAtDesc(status);
+
+            return histories.stream()
+                    .map(this::convertToDocumentInfo)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("列出文档失败：status={}, error={}", status, e.getMessage(), e);
+            throw new RuntimeException("列出文档失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 获取文档详情
+     *
+     * <p>包含文档的摄取历史和向量库中的chunk信息。</p>
+     *
+     * @param fileHash 文件哈希
+     * @return 文档详情
+     */
+    public DocumentDetail getDocumentDetail(String fileHash) {
+        log.info("获取文档详情：fileHash={}", fileHash);
+
+        try {
+            // 1. 从摄取历史获取基本信息
+            Optional<IngestionHistory> historyOpt = ingestionHistoryRepository.findById(fileHash);
+            if (historyOpt.isEmpty()) {
+                throw new RuntimeException("文档不存在：" + fileHash);
+            }
+
+            IngestionHistory history = historyOpt.get();
+
+            // 2. 构建详情
+            DocumentDetail detail = new DocumentDetail();
+            detail.setFileHash(history.getFileHash());
+            detail.setFilePath(history.getFilePath());
+            detail.setFileSize(history.getFileSize());
+            detail.setStatus(history.getStatus().name());
+            detail.setProcessedAt(history.getProcessedAt());
+            detail.setChunkCount(history.getChunkCount());
+            detail.setErrorMsg(history.getErrorMsg());
+
+            log.info("文档详情获取成功：fileHash={}, chunkCount={}", fileHash, history.getChunkCount());
+            return detail;
+
+        } catch (Exception e) {
+            log.error("获取文档详情失败：fileHash={}, error={}", fileHash, e.getMessage(), e);
+            throw new RuntimeException("获取文档详情失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 删除文档（联动清理）
+     *
+     * <p>删除流程：</p>
+     * <ol>
+     *   <li>根据file_path查询摄取历史</li>
+     *   <li>从Milvus删除对应的向量数据</li>
+     *   <li>删除摄取历史记录</li>
+     * </ol>
+     *
+     * @param filePath 文件路径
+     */
+    @Transactional
+    public void deleteDocument(String filePath) {
+        log.info("开始删除文档：filePath={}", filePath);
+
+        try {
+            // 1. 查找摄取历史
+            List<IngestionHistory> histories = ingestionHistoryRepository.findByFilePathContaining(filePath);
+            if (histories.isEmpty()) {
+                log.warn("文档不存在：filePath={}", filePath);
+                return;
+            }
+
+            // 取第一个匹配的记录（精确匹配）
+            IngestionHistory history = histories.stream()
+                    .filter(h -> h.getFilePath().equals(filePath))
+                    .findFirst()
+                    .orElse(histories.get(0));
+
+            String fileHash = history.getFileHash();
+
+            // 2. 从Milvus删除向量数据（通过metadata过滤）
+            try {
+                DeleteReq deleteReq = DeleteReq.builder()
+                        .collectionName(collectionName)
+                        .filter(String.format("doc_hash == \"%s\"", fileHash))
+                        .build();
+
+                milvusClient.delete(deleteReq);
+                log.info("Milvus向量数据删除成功：fileHash={}", fileHash);
+
+            } catch (Exception e) {
+                log.error("Milvus删除失败：fileHash={}, error={}", fileHash, e.getMessage(), e);
+                // 继续删除历史记录
+            }
+
+            // 3. 删除摄取历史
+            ingestionHistoryRepository.delete(history);
+            log.info("摄取历史删除成功：fileHash={}", fileHash);
+
+            log.info("文档删除完成：filePath={}, fileHash={}", filePath, fileHash);
+
+        } catch (Exception e) {
+            log.error("删除文档失败：filePath={}, error={}", filePath, e.getMessage(), e);
+            throw new RuntimeException("删除文档失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 获取Collection统计信息
+     *
+     * <p>包含：</p>
+     * <ul>
+     *   <li>向量数量</li>
+     *   <li>文档数量</li>
+     *   <li>成功/失败摄取数量</li>
+     * </ul>
+     *
+     * @return 统计信息
+     */
+    public CollectionStats getCollectionStats() {
+        log.info("获取Collection统计信息：collection={}", collectionName);
+
+        try {
+            CollectionStats stats = new CollectionStats();
+
+            // 1. Milvus统计
+            try {
+                GetCollectionStatsReq statsReq = GetCollectionStatsReq.builder()
+                        .collectionName(collectionName)
+                        .build();
+
+                GetCollectionStatsResp statsResp = milvusClient.getCollectionStats(statsReq);
+
+                // 从stats map中获取row_count
+                Object rowCountObj = statsResp.getStats().get("row_count");
+                long rowCount = rowCountObj != null ? Long.parseLong(rowCountObj.toString()) : 0L;
+
+                stats.setVectorCount(rowCount);
+                log.debug("Milvus向量数量：{}", rowCount);
+
+            } catch (Exception e) {
+                log.warn("获取Milvus统计失败：{}", e.getMessage());
+                stats.setVectorCount(0L);
+            }
+
+            // 2. 摄取历史统计
+            long totalDocuments = ingestionHistoryRepository.count();
+            long successDocuments = ingestionHistoryRepository.countByStatus(IngestionHistory.IngestionStatus.SUCCESS);
+            long failedDocuments = ingestionHistoryRepository.countByStatus(IngestionHistory.IngestionStatus.FAILED);
+
+            stats.setTotalDocuments(totalDocuments);
+            stats.setSuccessDocuments(successDocuments);
+            stats.setFailedDocuments(failedDocuments);
+
+            log.info("统计信息：总文档数={}, 成功={}, 失败={}, 向量数={}",
+                    totalDocuments, successDocuments, failedDocuments, stats.getVectorCount());
+
+            return stats;
+
+        } catch (Exception e) {
+            log.error("获取统计信息失败：{}", e.getMessage(), e);
+            throw new RuntimeException("获取统计信息失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 转换为文档信息
+     */
+    private DocumentInfo convertToDocumentInfo(IngestionHistory history) {
+        DocumentInfo info = new DocumentInfo();
+        info.setFileHash(history.getFileHash());
+        info.setFilePath(history.getFilePath());
+        info.setFileSize(history.getFileSize());
+        info.setStatus(history.getStatus().name());
+        info.setProcessedAt(history.getProcessedAt());
+        info.setChunkCount(history.getChunkCount());
+        return info;
+    }
+
+    /**
+     * 文档信息（列表用）
+     */
+    public static class DocumentInfo {
+        private String fileHash;
+        private String filePath;
+        private Long fileSize;
+        private String status;
+        private java.time.Instant processedAt;
+        private Integer chunkCount;
+
+        // Getters and Setters
+        public String getFileHash() { return fileHash; }
+        public void setFileHash(String fileHash) { this.fileHash = fileHash; }
+
+        public String getFilePath() { return filePath; }
+        public void setFilePath(String filePath) { this.filePath = filePath; }
+
+        public Long getFileSize() { return fileSize; }
+        public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
+
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+
+        public java.time.Instant getProcessedAt() { return processedAt; }
+        public void setProcessedAt(java.time.Instant processedAt) { this.processedAt = processedAt; }
+
+        public Integer getChunkCount() { return chunkCount; }
+        public void setChunkCount(Integer chunkCount) { this.chunkCount = chunkCount; }
+    }
+
+    /**
+     * 文档详情（详情用）
+     */
+    public static class DocumentDetail {
+        private String fileHash;
+        private String filePath;
+        private Long fileSize;
+        private String status;
+        private java.time.Instant processedAt;
+        private Integer chunkCount;
+        private String errorMsg;
+
+        // Getters and Setters
+        public String getFileHash() { return fileHash; }
+        public void setFileHash(String fileHash) { this.fileHash = fileHash; }
+
+        public String getFilePath() { return filePath; }
+        public void setFilePath(String filePath) { this.filePath = filePath; }
+
+        public Long getFileSize() { return fileSize; }
+        public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
+
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+
+        public java.time.Instant getProcessedAt() { return processedAt; }
+        public void setProcessedAt(java.time.Instant processedAt) { this.processedAt = processedAt; }
+
+        public Integer getChunkCount() { return chunkCount; }
+        public void setChunkCount(Integer chunkCount) { this.chunkCount = chunkCount; }
+
+        public String getErrorMsg() { return errorMsg; }
+        public void setErrorMsg(String errorMsg) { this.errorMsg = errorMsg; }
+    }
+
+    /**
+     * Collection统计信息
+     */
+    public static class CollectionStats {
+        private Long vectorCount;
+        private Long totalDocuments;
+        private Long successDocuments;
+        private Long failedDocuments;
+
+        // Getters and Setters
+        public Long getVectorCount() { return vectorCount; }
+        public void setVectorCount(Long vectorCount) { this.vectorCount = vectorCount; }
+
+        public Long getTotalDocuments() { return totalDocuments; }
+        public void setTotalDocuments(Long totalDocuments) { this.totalDocuments = totalDocuments; }
+
+        public Long getSuccessDocuments() { return successDocuments; }
+        public void setSuccessDocuments(Long successDocuments) { this.successDocuments = successDocuments; }
+
+        public Long getFailedDocuments() { return failedDocuments; }
+        public void setFailedDocuments(Long failedDocuments) { this.failedDocuments = failedDocuments; }
+    }
+}

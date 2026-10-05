@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-04 13:49:03",
+  "lastUpdated": "2026-10-05 02:00:46",
   "currentPhase": "D",
   "currentTask": "D8",
   "tasks": {
@@ -324,11 +324,14 @@
       "name": "Citation生成",
       "phase": "E",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-04 13:50:42",
+      "files": [
+        "src/main/java/com/ragserver/service/PromptService.java",
+        "src/test/java/com/ragserver/service/PromptServiceTest.java"
+      ],
+      "notes": "Citation生成功能已在E3中实现。PromptService.buildCitations()方法支持格式化引用列表，包含文档来源、页码、章节信息，测试覆盖充分（14个测试中8个与Citation相关）。"
     },
     "E6": {
       "name": "流式输出支持",
@@ -354,41 +357,41 @@
       "name": "MCP Server初始化",
       "phase": "F",
       "priority": "P0",
-      "status": "pending",
+      "status": "blocked",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "MCP SDK依赖不可用（io.modelcontextprotocol.sdk:mcp在Maven仓库中不存在），需要等待SDK发布或寻找替代方案"
     },
     "F2": {
       "name": "query_knowledge_hub工具",
       "phase": "F",
       "priority": "P0",
-      "status": "pending",
+      "status": "blocked",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "依赖F1（MCP Server初始化）"
     },
     "F3": {
       "name": "list_collections工具",
       "phase": "F",
       "priority": "P0",
-      "status": "pending",
+      "status": "blocked",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "依赖F1（MCP Server初始化）"
     },
     "F4": {
       "name": "get_document_summary工具",
       "phase": "F",
       "priority": "P0",
-      "status": "pending",
+      "status": "blocked",
       "startedAt": null,
       "completedAt": null,
       "files": [],
-      "notes": ""
+      "notes": "依赖F1（MCP Server初始化）"
     },
     "F5": {
       "name": "MCP异常处理",
@@ -404,11 +407,14 @@
       "name": "DocumentService实现",
       "phase": "G",
       "priority": "P0",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-05 02:00:46",
+      "files": [
+        "src/main/java/com/ragserver/service/DocumentService.java",
+        "src/test/java/com/ragserver/service/DocumentServiceTest.java"
+      ],
+      "notes": "DocumentService实现完成。提供文档生命周期管理：列表查询、详情获取、删除（联动清理Milvus和历史记录）、Collection统计，测试通过（8/8）。"
     },
     "G2": {
       "name": "ImageStorage实现",
@@ -613,10 +619,10 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 22,
+    "completed": 24,
     "inProgress": 0,
-    "pending": 31,
-    "blocked": 0,
+    "pending": 25,
+    "blocked": 4,
     "skipped": 0
   }
 }
