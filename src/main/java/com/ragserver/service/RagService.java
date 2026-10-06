@@ -1,6 +1,8 @@
 package com.ragserver.service;
 
 import com.ragserver.ai.dashscope.DashScopeChatClient;
+import com.ragserver.entity.QueryHistory;
+import com.ragserver.repository.QueryHistoryRepository;
 import com.ragserver.retrieval.HybridRetriever;
 import com.ragserver.retrieval.model.Document;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,7 @@ public class RagService {
     private final DashScopeChatClient chatClient;
     private final PromptService promptService;
     private final StreamingService streamingService;
+    private final QueryHistoryRepository queryHistoryRepository;
 
     /**
      * 默认检索文档数量
@@ -60,11 +63,13 @@ public class RagService {
     public RagService(HybridRetriever retriever,
                       DashScopeChatClient chatClient,
                       PromptService promptService,
-                      StreamingService streamingService) {
+                      StreamingService streamingService,
+                      QueryHistoryRepository queryHistoryRepository) {
         this.retriever = retriever;
         this.chatClient = chatClient;
         this.promptService = promptService;
         this.streamingService = streamingService;
+        this.queryHistoryRepository = queryHistoryRepository;
     }
 
     /**
@@ -93,16 +98,28 @@ public class RagService {
         log.info("开始RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
         long startTime = System.currentTimeMillis();
+        String answer = null;
+        String status = "SUCCESS";
+        String errorMessage = null;
+        int retrievedDocsCount = 0;
 
         try {
             // 1. 检索相关文档
             List<Document> context = retriever.retrieve(question, topK, enableRerank);
+            retrievedDocsCount = context.size();
             log.debug("检索完成：获取{}个文档", context.size());
 
             // 检查是否有检索结果
             if (context.isEmpty()) {
                 log.warn("未检索到相关文档");
-                return "抱歉，在知识库中未找到与您问题相关的信息。";
+                status = "NO_RESULTS";
+                answer = "抱歉，在知识库中未找到与您问题相关的信息。";
+
+                // 记录查询历史
+                saveQueryHistory(question, answer, topK, enableRerank,
+                    System.currentTimeMillis() - startTime, status, retrievedDocsCount, null);
+
+                return answer;
             }
 
             // 2. 构建Prompt
@@ -110,7 +127,7 @@ public class RagService {
             log.debug("Prompt构建完成，长度：{}", prompt.length());
 
             // 3. LLM生成答案
-            String answer = chatClient.chat(prompt);
+            answer = chatClient.chat(prompt);
             log.debug("LLM生成完成，答案长度：{}", answer.length());
 
             // 4. 添加引用
@@ -122,10 +139,20 @@ public class RagService {
             long elapsedTime = System.currentTimeMillis() - startTime;
             log.info("RAG查询完成：耗时{}ms", elapsedTime);
 
+            // 记录查询历史
+            saveQueryHistory(question, result, topK, enableRerank, elapsedTime, status, retrievedDocsCount, null);
+
             return result;
 
         } catch (Exception e) {
             log.error("RAG查询失败：question={}, error={}", question, e.getMessage(), e);
+            status = "FAILED";
+            errorMessage = e.getMessage();
+
+            // 记录失败的查询历史
+            saveQueryHistory(question, null, topK, enableRerank,
+                System.currentTimeMillis() - startTime, status, retrievedDocsCount, errorMessage);
+
             throw new RuntimeException("RAG查询失败：" + e.getMessage(), e);
         }
     }
@@ -261,5 +288,41 @@ public class RagService {
             }
         });
     }
+
+    /**
+     * 保存查询历史
+     *
+     * <p>异步保存查询历史，失败不影响主流程。</p>
+     *
+     * @param question 用户问题
+     * @param answer 生成的答案
+     * @param topK 检索文档数量
+     * @param enableRerank 是否启用重排序
+     * @param responseTimeMs 响应时间
+     * @param status 查询状态
+     * @param retrievedDocsCount 检索到的文档数量
+     * @param errorMessage 错误消息（如果失败）
+     */
+    private void saveQueryHistory(String question, String answer, Integer topK,
+                                  Boolean enableRerank, Long responseTimeMs,
+                                  String status, Integer retrievedDocsCount,
+                                  String errorMessage) {
+        try {
+            QueryHistory history = QueryHistory.create(question, answer, topK,
+                enableRerank, responseTimeMs, status);
+            history.setRetrievedDocsCount(retrievedDocsCount);
+
+            if (errorMessage != null) {
+                history.setErrorMessage(errorMessage);
+            }
+
+            queryHistoryRepository.save(history);
+            log.debug("查询历史已保存：question={}, status={}", question, status);
+
+        } catch (Exception e) {
+            log.warn("保存查询历史失败（不影响主流程）：{}", e.getMessage());
+        }
+    }
 }
+
 

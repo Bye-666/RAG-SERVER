@@ -1,6 +1,7 @@
 package com.ragserver.service;
 
 import com.ragserver.ai.dashscope.DashScopeChatClient;
+import com.ragserver.repository.QueryHistoryRepository;
 import com.ragserver.retrieval.HybridRetriever;
 import com.ragserver.retrieval.model.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,13 +41,16 @@ class RagServiceTest {
     @Mock
     private StreamingService streamingService;
 
+    @Mock
+    private QueryHistoryRepository queryHistoryRepository;
+
     private PromptService promptService;
     private RagService ragService;
 
     @BeforeEach
     void setUp() {
         promptService = new PromptService();
-        ragService = new RagService(retriever, chatClient, promptService, streamingService);
+        ragService = new RagService(retriever, chatClient, promptService, streamingService, queryHistoryRepository);
     }
 
     /**

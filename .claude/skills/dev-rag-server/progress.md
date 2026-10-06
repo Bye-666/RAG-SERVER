@@ -1,15 +1,15 @@
 # RAG-SERVER 开发进度报告
 
-生成时间: 2026-10-06 06:28:52
+生成时间: 2026-10-06 06:40:38
 
 ## 📊 总体进度
 
-[████████████████████████████████████████░░░░░░░░░░] 79%
+[█████████████████████████████████████████░░░░░░░░░] 81%
 
 - **总任务数**: 53
-- **已完成**: 42
+- **已完成**: 43
 - **进行中**: 0
-- **待开始**: 7
+- **待开始**: 6
 - **已阻塞**: 4
 - **已跳过**: 0
 
@@ -17,9 +17,9 @@
 
 - **当前阶段**: 阶段J
 - **当前任务**: J4
-- **最后更新**: 2026-10-06 06:28:52
+- **最后更新**: 2026-10-06 06:40:38
 
-## ✅ 已完成任务 (42/53)
+## ✅ 已完成任务 (43/53)
 
 ### 阶段A
 
@@ -178,6 +178,11 @@
   - 生成文件: src/main/java/com/ragserver/controller/StatsController.java, src/test/java/com/ragserver/controller/StatsControllerTest.java
   - 备注: 文档统计API实现完成。创建StatsController提供REST接口：/api/stats/overview（系统总览统计）、/api/stats/collections（Collection统计），支持异常处理，测试通过（4/4）。
 
+- ✅ **G6** - 搜索历史记录 (P1)
+  - 完成时间: 2026-10-06 06:40:38
+  - 生成文件: src/main/java/com/ragserver/entity/QueryHistory.java, src/main/java/com/ragserver/repository/QueryHistoryRepository.java, src/main/java/com/ragserver/service/RagService.java...
+  - 备注: 搜索历史记录功能实现完成。新增QueryHistory实体和Repository，RagService自动记录查询历史，QueryHistoryController提供历史查询API，支持关键词搜索、统计分析、高频问题等功能，测试通过(22/22)。
+
 ### 阶段H
 
 - ✅ **H1** - REST API设计 (P0)
@@ -275,7 +280,7 @@
 - **阶段D** 文档摄取Pipeline (8个任务): [█████████░] 88% (7/8)
 - **阶段E** RAG检索与生成 (7个任务): [█████████░] 86% (6/7)
 - **阶段F** MCP协议集成 (5个任务): [░░░░░░░░░░] 0% (0/5)
-- **阶段G** 元数据与管理 (6个任务): [████████░░] 83% (5/6)
+- **阶段G** 元数据与管理 (6个任务): [██████████] 100% (6/6)
 - **阶段H** Dashboard (6个任务): [██████████] 100% (6/6)
 - **阶段I** 评估与优化 (5个任务): [████████░░] 80% (4/5)
 - **阶段J** 端到端验收 (4个任务): [████████░░] 75% (3/4)
