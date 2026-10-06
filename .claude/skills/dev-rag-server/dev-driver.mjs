@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -347,6 +348,96 @@ class TaskTracker {
   }
 
   /**
+   * 检查进度同步状态
+   */
+  checkSync(options = {}) {
+    console.log('🔍 检查进度同步状态...\n');
+
+    try {
+      // 获取最近10次提交
+      const gitLog = execSync('git log --oneline -10', {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf8'
+      });
+
+      // 提取任务ID（匹配格式：feat: 完成任务X1、fix: 修复XX等）
+      const taskIdPattern = /(?:完成任务|任务)([A-J]\d)/g;
+      const completedInGit = new Set();
+
+      let match;
+      while ((match = taskIdPattern.exec(gitLog)) !== null) {
+        completedInGit.add(match[1]);
+      }
+
+      // 获取 tracker 中已完成的任务
+      const completedInTracker = new Set();
+      for (const [id, task] of Object.entries(this.data.tasks)) {
+        if (task.status === 'completed') {
+          completedInTracker.add(id);
+        }
+      }
+
+      // 找出在Git中已提交但tracker中未标记完成的任务
+      const missing = Array.from(completedInGit).filter(id => !completedInTracker.has(id));
+
+      if (missing.length > 0) {
+        console.log('⚠️  发现不同步问题：\n');
+        missing.forEach(id => {
+          const task = this.data.tasks[id];
+          if (task) {
+            console.log(`   ❌ 任务 ${id} (${task.name}): 代码已提交，但进度未更新`);
+          } else {
+            console.log(`   ❌ 任务 ${id}: 在Git提交中找到，但不在任务列表中`);
+          }
+        });
+
+        if (options.autoFix) {
+          console.log('\n🔧 自动修复中...\n');
+          let fixed = 0;
+          missing.forEach(id => {
+            const task = this.data.tasks[id];
+            if (task && task.status !== 'completed') {
+              task.status = 'completed';
+              task.completedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+              task.notes = task.notes || '自动修复：从Git历史恢复';
+              console.log(`   ✅ 已修复任务 ${id}`);
+              fixed++;
+            }
+          });
+
+          if (fixed > 0) {
+            this.updateStatistics();
+            this.save();
+            this.generateProgressReport();
+            console.log(`\n✅ 修复完成！共修复 ${fixed} 个任务\n`);
+          }
+        } else {
+          console.log('\n💡 修复建议：');
+          console.log('   方法1（推荐）：自动修复');
+          console.log('   node dev-driver.mjs check --auto-fix\n');
+          console.log('   方法2：手动标记');
+          missing.forEach(id => {
+            console.log(`   node dev-driver.mjs complete ${id}`);
+          });
+          console.log('');
+        }
+
+        return false;
+      } else {
+        console.log('✅ 进度同步正常！');
+        console.log(`   - Git提交中的任务: ${completedInGit.size} 个`);
+        console.log(`   - Tracker中已完成: ${completedInTracker.size} 个`);
+        console.log(`   - 状态一致 ✓\n`);
+        return true;
+      }
+    } catch (error) {
+      console.error('❌ 检查失败:', error.message);
+      console.log('提示: 请确保在Git仓库中运行此命令\n');
+      return false;
+    }
+  }
+
+  /**
    * 显示状态
    */
   showStatus() {
@@ -551,6 +642,12 @@ function main() {
       tracker.initialize();
       break;
 
+    case 'check':
+      if (!tracker.load()) return;
+      const autoFix = args.includes('--auto-fix');
+      tracker.checkSync({ autoFix });
+      break;
+
     case 'status':
       if (!tracker.load()) return;
       tracker.showStatus();
@@ -667,6 +764,8 @@ RAG-SERVER 开发驱动器
 
 命令:
   init                     初始化任务追踪（首次使用）
+  check                    检查进度同步状态
+    --auto-fix               自动修复不同步问题
   status                   显示当前进度
   next                     显示下一个待开始的任务
   start <taskId>           开始指定任务
@@ -684,6 +783,8 @@ RAG-SERVER 开发驱动器
 
 示例:
   node dev-driver.mjs init
+  node dev-driver.mjs check
+  node dev-driver.mjs check --auto-fix
   node dev-driver.mjs status
   node dev-driver.mjs start A1
   node dev-driver.mjs complete A1 --files "pom.xml,src/..." --notes "编译通过"
