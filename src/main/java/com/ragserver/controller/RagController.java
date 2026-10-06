@@ -5,9 +5,11 @@ import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -305,6 +307,57 @@ public class RagController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "查询失败：" + e.getMessage()));
         }
+    }
+
+    /**
+     * 流式RAG查询
+     *
+     * <p>使用SSE（Server-Sent Events）流式返回答案，提供更好的用户体验。</p>
+     *
+     * <h3>请求示例</h3>
+     * <pre>
+     * GET /api/query/stream?question=什么是RAG？&topK=5&enableRerank=false
+     * Accept: text/event-stream
+     * </pre>
+     *
+     * <h3>响应格式</h3>
+     * <pre>
+     * data: 文本内容逐步返回
+     * data: [引用信息]
+     * </pre>
+     *
+     * <h3>前端使用示例</h3>
+     * <pre>{@code
+     * const eventSource = new EventSource('/api/query/stream?question=什么是RAG？');
+     * eventSource.onmessage = (event) => {
+     *     console.log(event.data);
+     *     // 逐步显示内容
+     * };
+     * }</pre>
+     *
+     * @param question 用户问题
+     * @param topK 检索文档数量（可选，默认10）
+     * @param enableRerank 是否启用重排序（可选，默认false）
+     * @return 流式答案文本
+     */
+    @GetMapping(value = "/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> queryStream(
+            @RequestParam String question,
+            @RequestParam(defaultValue = "10") int topK,
+            @RequestParam(defaultValue = "false") boolean enableRerank) {
+
+        log.info("流式RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
+
+        // 输入校验
+        if (question == null || question.trim().isEmpty()) {
+            return Flux.just("错误：查询问题不能为空");
+        }
+
+        if (topK < 1 || topK > 20) {
+            return Flux.just("错误：topK必须在1-20之间");
+        }
+
+        return ragService.queryStream(question, topK, enableRerank);
     }
 
     /**

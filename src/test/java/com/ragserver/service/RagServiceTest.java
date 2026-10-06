@@ -37,13 +37,16 @@ class RagServiceTest {
     @Mock
     private DashScopeChatClient chatClient;
 
+    @Mock
+    private StreamingService streamingService;
+
     private PromptService promptService;
     private RagService ragService;
 
     @BeforeEach
     void setUp() {
         promptService = new PromptService();
-        ragService = new RagService(retriever, chatClient, promptService);
+        ragService = new RagService(retriever, chatClient, promptService, streamingService);
     }
 
     /**
