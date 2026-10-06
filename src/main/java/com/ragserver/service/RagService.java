@@ -6,6 +6,7 @@ import com.ragserver.repository.QueryHistoryRepository;
 import com.ragserver.retrieval.HybridRetriever;
 import com.ragserver.retrieval.model.Document;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -89,11 +90,14 @@ public class RagService {
      *
      * <p>完整的RAG流程，支持自定义参数。</p>
      *
+     * <p>缓存策略：基于问题、topK和enableRerank生成缓存键，缓存30分钟。</p>
+     *
      * @param question 用户问题
      * @param topK 检索文档数量
      * @param enableRerank 是否启用重排序
      * @return 生成的答案（带引用）
      */
+    @Cacheable(value = "ragQuery", key = "#question + '_' + #topK + '_' + #enableRerank")
     public String query(String question, int topK, boolean enableRerank) {
         log.info("开始RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 

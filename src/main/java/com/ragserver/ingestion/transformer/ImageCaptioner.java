@@ -2,6 +2,7 @@ package com.ragserver.ingestion.transformer;
 
 import com.ragserver.ai.dashscope.DashScopeVisionClient;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -85,9 +86,12 @@ public class ImageCaptioner {
      *
      * <p>使用默认提示词生成中等长度的图片描述。</p>
      *
+     * <p>缓存策略：基于图片URL缓存，缓存24小时。</p>
+     *
      * @param imageUrl 图片URL
      * @return 图片描述文本
      */
+    @Cacheable(value = "imageCaption", key = "#imageUrl")
     public String generateCaption(String imageUrl) {
         log.info("生成图片描述：imageUrl={}", imageUrl);
 
