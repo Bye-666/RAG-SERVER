@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -84,12 +85,14 @@ public class StatsController {
             // 2. 获取图片统计
             ImageStorageService.StorageStats storageStats = imageStorageService.getStats();
 
-            // 3. 构建响应
+            // 3. 构建响应 - 添加前端需要的字段
             Map<String, Object> overview = new HashMap<>();
             overview.put("totalDocuments", collectionStats.getTotalDocuments());
             overview.put("successDocuments", collectionStats.getSuccessDocuments());
             overview.put("failedDocuments", collectionStats.getFailedDocuments());
             overview.put("vectorCount", collectionStats.getVectorCount());
+            overview.put("totalChunks", collectionStats.getVectorCount()); // 别名
+            overview.put("totalCollections", 1); // 当前只有一个默认collection
             overview.put("imageCount", storageStats.getTotalImages());
 
             log.info("系统总览统计：文档数={}, 向量数={}, 图片数={}",
@@ -125,30 +128,27 @@ public class StatsController {
      * @return Collection统计信息
      */
     @GetMapping("/collections")
-    public ResponseEntity<Map<String, Object>> getCollections() {
+    public ResponseEntity<List<Map<String, Object>>> getCollections() {
         log.info("获取Collection统计");
 
         try {
             // 获取Collection统计
             DocumentService.CollectionStats stats = documentService.getCollectionStats();
 
-            // 构建响应
-            Map<String, Object> collections = new HashMap<>();
-            collections.put("collectionName", "rag_knowledge_hub_dev"); // 从配置获取
-            collections.put("totalDocuments", stats.getTotalDocuments());
-            collections.put("successDocuments", stats.getSuccessDocuments());
-            collections.put("failedDocuments", stats.getFailedDocuments());
-            collections.put("vectorCount", stats.getVectorCount());
+            // 构建响应 - 返回数组格式
+            Map<String, Object> collection = new HashMap<>();
+            collection.put("collectionName", "knowledge_base");
+            collection.put("documentCount", stats.getTotalDocuments());
+            collection.put("chunkCount", stats.getVectorCount());
 
             log.info("Collection统计：文档数={}, 向量数={}",
                     stats.getTotalDocuments(), stats.getVectorCount());
 
-            return ResponseEntity.ok(collections);
+            return ResponseEntity.ok(List.of(collection));
 
         } catch (Exception e) {
             log.error("获取Collection统计失败：{}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "获取Collection统计失败：" + e.getMessage()));
+            return ResponseEntity.internalServerError().build();
         }
     }
 }

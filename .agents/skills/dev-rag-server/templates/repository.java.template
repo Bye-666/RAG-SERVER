@@ -1,0 +1,68 @@
+package ${package};
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * ${className}
+ *
+ * <p>${description}</p>
+ *
+ * <h3>提供的查询方法</h3>
+ * <ul>
+ *   <li>按${field1}查询</li>
+ *   <li>按${field2}查询</li>
+ *   <li>按${field3}和${field4}组合查询</li>
+ * </ul>
+ *
+ * @author RAG-SERVER开发团队
+ * @since 1.0.0
+ */
+@Repository
+public interface ${className} extends JpaRepository<${entityType}, ${idType}> {
+
+    /**
+     * 根据${field1}查询
+     *
+     * @param ${field1} ${field1Description}
+     * @return 查询结果
+     */
+    Optional<${entityType}> findBy${field1Capitalized}(${field1Type} ${field1});
+
+    /**
+     * 根据${field2}查询所有记录
+     *
+     * @param ${field2} ${field2Description}
+     * @return 记录列表
+     */
+    List<${entityType}> findBy${field2Capitalized}(${field2Type} ${field2});
+
+    /**
+     * 根据${field3}和${field4}查询
+     *
+     * @param ${field3} ${field3Description}
+     * @param ${field4} ${field4Description}
+     * @return 查询结果
+     */
+    List<${entityType}> findBy${field3Capitalized}And${field4Capitalized}(
+        ${field3Type} ${field3},
+        ${field4Type} ${field4}
+    );
+
+    /**
+     * 检查${field1}是否存在
+     *
+     * @param ${field1} ${field1Description}
+     * @return 是否存在
+     */
+    boolean existsBy${field1Capitalized}(${field1Type} ${field1});
+
+    /**
+     * 根据${field2}删除记录
+     *
+     * @param ${field2} ${field2Description}
+     */
+    void deleteBy${field2Capitalized}(${field2Type} ${field2});
+}

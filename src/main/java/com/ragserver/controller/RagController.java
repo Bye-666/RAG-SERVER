@@ -1,5 +1,6 @@
 package com.ragserver.controller;
 
+import com.ragserver.ingestion.IngestionPipeline;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
@@ -8,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -98,16 +101,33 @@ public class RagController {
         log.info("接收文档摄取请求：filename={}, size={}", file.getOriginalFilename(), file.getSize());
 
         try {
-            // 调用摄取服务（简化版，实际需要实现文件保存和处理）
-            String message = String.format("文档摄取功能开发中。文件：%s，大小：%d字节",
-                    file.getOriginalFilename(), file.getSize());
+            // 保存文件到临时目录
+            java.nio.file.Path tempFile = java.nio.file.Files.createTempFile("upload_", ".pdf");
+            file.transferTo(tempFile.toFile());
 
-            return ResponseEntity.ok(Map.of(
-                    "message", message,
-                    "filename", file.getOriginalFilename(),
-                    "size", file.getSize(),
-                    "status", "PENDING"
-            ));
+            // 调用摄取服务
+            IngestionService.BatchIngestionResult result = ingestionService.ingestDocuments(List.of(tempFile));
+
+            // 清理临时文件
+            java.nio.file.Files.deleteIfExists(tempFile);
+
+            if (result.getSuccessCount() > 0) {
+                IngestionPipeline.IngestionResult ingestionResult = result.getSuccesses().get(0);
+                return ResponseEntity.ok(Map.of(
+                        "message", "文档摄取成功",
+                        "filename", file.getOriginalFilename(),
+                        "chunkCount", ingestionResult.getChunksProcessed(),
+                        "status", "SUCCESS"
+                ));
+            } else {
+                String errorMsg = result.getFailures().isEmpty() ?
+                    "未知错误" : result.getFailures().get(0).getErrorMessage();
+                return ResponseEntity.ok(Map.of(
+                        "message", "文档摄取失败: " + errorMsg,
+                        "filename", file.getOriginalFilename(),
+                        "status", "FAILED"
+                ));
+            }
 
         } catch (Exception e) {
             log.error("文档摄取失败：{}", e.getMessage(), e);
@@ -259,13 +279,26 @@ public class RagController {
 
         log.info("RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
+        // 输入校验
+        if (question == null || question.trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "查询问题不能为空"));
+        }
+
+        if (topK < 1 || topK > 20) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "topK必须在1-20之间"));
+        }
+
         try {
             String answer = ragService.query(question, topK, enableRerank);
 
-            return ResponseEntity.ok(Map.of(
-                    "answer", answer,
-                    "question", question
-            ));
+            Map<String, Object> result = new HashMap<>();
+            result.put("question", question);
+            result.put("answer", answer);
+            result.put("sources", List.of()); // TODO: 从RagService获取sources
+
+            return ResponseEntity.ok(result);
 
         } catch (Exception e) {
             log.error("RAG查询失败：question={}, error={}", question, e.getMessage(), e);

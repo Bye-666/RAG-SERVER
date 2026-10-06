@@ -1,0 +1,90 @@
+package ${package};
+
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * ${className}
+ *
+ * <p>${description}</p>
+ *
+ * <h3>API端点</h3>
+ * <ul>
+ *   <li>POST ${endpoint1} - ${endpoint1Description}</li>
+ *   <li>GET ${endpoint2} - ${endpoint2Description}</li>
+ * </ul>
+ *
+ * @author RAG-SERVER开发团队
+ * @since 1.0.0
+ */
+@Slf4j
+@RestController
+@RequestMapping("${basePath}")
+public class ${className} {
+
+    /**
+     * ${serviceName}服务
+     */
+    private final ${serviceType} ${serviceName};
+
+    /**
+     * 构造函数
+     *
+     * @param ${serviceName} ${serviceName}服务实例
+     */
+    public ${className}(${serviceType} ${serviceName}) {
+        this.${serviceName} = ${serviceName};
+    }
+
+    /**
+     * ${method1Name}
+     *
+     * <p>${method1Description}</p>
+     *
+     * @param request 请求对象
+     * @return 响应结果
+     */
+    @PostMapping("${endpoint1}")
+    public ResponseEntity<${responseType}> ${method1Name}(@RequestBody ${requestType} request) {
+        log.info("收到请求：{}", request);
+
+        try {
+            ${resultType} result = ${serviceName}.${serviceMethod}(request.get${paramGetter}());
+
+            log.info("请求处理成功");
+            return ResponseEntity.ok(${responseType}.success("${successMessage}", result));
+
+        } catch (Exception e) {
+            log.error("请求处理失败：{}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                .body(${responseType}.error("${errorMessage}：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * ${method2Name}
+     *
+     * <p>${method2Description}</p>
+     *
+     * @param ${param2Name} ${param2Description}
+     * @return 响应结果
+     */
+    @GetMapping("${endpoint2}")
+    public ResponseEntity<${responseType}> ${method2Name}(@RequestParam ${param2Type} ${param2Name}) {
+        log.info("查询请求：{}", ${param2Name});
+
+        try {
+            ${resultType} result = ${serviceName}.${serviceMethod2}(${param2Name});
+
+            log.info("查询成功");
+            return ResponseEntity.ok(${responseType}.success("查询成功", result));
+
+        } catch (Exception e) {
+            log.error("查询失败：{}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                .body(${responseType}.error("查询失败：" + e.getMessage()));
+        }
+    }
+}

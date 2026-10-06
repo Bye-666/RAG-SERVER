@@ -1,0 +1,119 @@
+package ${package};
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * ${className}测试类
+ *
+ * <p>测试${targetClass}的各项功能</p>
+ *
+ * <h3>测试覆盖</h3>
+ * <ul>
+ *   <li>正常流程测试</li>
+ *   <li>边界条件测试</li>
+ *   <li>异常处理测试</li>
+ * </ul>
+ *
+ * @author RAG-SERVER开发团队
+ * @since 1.0.0
+ */
+@SpringBootTest
+@DisplayName("${targetClass}测试")
+class ${className} {
+
+    @Autowired
+    private ${targetClass} ${targetInstance};
+
+    @MockBean
+    private ${dependency1Type} ${dependency1Name};
+
+    /**
+     * 测试前准备
+     */
+    @BeforeEach
+    void setUp() {
+        // 准备测试数据
+    }
+
+    /**
+     * 测试${method1Name} - 正常流程
+     */
+    @Test
+    @DisplayName("${method1Name} - 正常执行应返回预期结果")
+    void test${method1NameCapitalized}_Success() {
+        // Given: 准备测试数据
+        ${param1Type} input = ${testInput};
+        ${returnType} expected = ${expectedOutput};
+
+        // Mock依赖行为
+        when(${dependency1Name}.${dependencyMethod}(any()))
+            .thenReturn(${mockReturn});
+
+        // When: 执行测试方法
+        ${returnType} actual = ${targetInstance}.${method1Name}(input);
+
+        // Then: 验证结果
+        assertNotNull(actual, "返回结果不应为null");
+        assertEquals(expected, actual, "返回结果应与预期一致");
+
+        // 验证依赖调用
+        verify(${dependency1Name}, times(1)).${dependencyMethod}(any());
+    }
+
+    /**
+     * 测试${method1Name} - 异常处理
+     */
+    @Test
+    @DisplayName("${method1Name} - 输入无效时应抛出异常")
+    void test${method1NameCapitalized}_InvalidInput() {
+        // Given: 准备无效输入
+        ${param1Type} invalidInput = ${invalidInput};
+
+        // When & Then: 应抛出异常
+        assertThrows(
+            ${exceptionType}.class,
+            () -> ${targetInstance}.${method1Name}(invalidInput),
+            "应抛出${exceptionType}异常"
+        );
+    }
+
+    /**
+     * 测试${method1Name} - 边界条件
+     */
+    @Test
+    @DisplayName("${method1Name} - 边界值测试")
+    void test${method1NameCapitalized}_BoundaryCondition() {
+        // Given: 准备边界值
+        ${param1Type} boundaryInput = ${boundaryValue};
+
+        // When: 执行测试
+        ${returnType} result = ${targetInstance}.${method1Name}(boundaryInput);
+
+        // Then: 验证边界情况处理
+        assertNotNull(result, "边界值应正确处理");
+    }
+
+    /**
+     * 测试${method2Name} - 正常流程
+     */
+    @Test
+    @DisplayName("${method2Name} - 正常执行测试")
+    void test${method2NameCapitalized}_Success() {
+        // Given
+        ${param2Type} input = ${testInput2};
+
+        // When
+        ${returnType2} result = ${targetInstance}.${method2Name}(input);
+
+        // Then
+        assertNotNull(result, "返回结果不应为null");
+    }
+}
