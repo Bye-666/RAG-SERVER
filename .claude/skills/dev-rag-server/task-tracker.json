@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-10-06 06:54:22",
+  "lastUpdated": "2026-10-06 07:02:16",
   "currentPhase": "J",
   "currentTask": "J4",
   "tasks": {
@@ -251,11 +251,14 @@
       "name": "ImageCaptioner实现",
       "phase": "D",
       "priority": "P1",
-      "status": "pending",
+      "status": "completed",
       "startedAt": null,
-      "completedAt": null,
-      "files": [],
-      "notes": ""
+      "completedAt": "2026-10-06 07:02:16",
+      "files": [
+        "src/main/java/com/ragserver/ingestion/transformer/ImageCaptioner.java",
+        "src/test/java/com/ragserver/ingestion/transformer/ImageCaptionerTest.java"
+      ],
+      "notes": "ImageCaptioner实现完成。基于DashScopeVisionClient实现图片描述生成，支持默认描述、简短描述、详细描述、批量处理、OCR文字提取、图片问答、多语言描述等功能，测试通过(15/15)。"
     },
     "D8": {
       "name": "增量摄取与去重",
@@ -675,9 +678,9 @@
   },
   "statistics": {
     "total": 53,
-    "completed": 44,
+    "completed": 45,
     "inProgress": 0,
-    "pending": 5,
+    "pending": 4,
     "blocked": 4,
     "skipped": 0
   }
