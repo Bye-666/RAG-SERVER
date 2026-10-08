@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cache.CacheManager;
 
 import java.time.Instant;
 import java.util.*;
@@ -42,10 +43,21 @@ class DocumentServiceTest {
     @MockBean
     private ImageStorageService imageStorageService;
 
+    @Autowired
+    private CacheManager cacheManager;
+
     @BeforeEach
     void setUp() {
         // 清空测试数据
         ingestionHistoryRepository.deleteAll();
+
+        // 清空缓存
+        if (cacheManager.getCache("stats") != null) {
+            cacheManager.getCache("stats").clear();
+        }
+        if (cacheManager.getCache("documents") != null) {
+            cacheManager.getCache("documents").clear();
+        }
     }
 
     /**

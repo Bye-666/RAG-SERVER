@@ -11,6 +11,8 @@ import io.milvus.v2.service.vector.request.DeleteReq;
 import io.milvus.v2.service.vector.request.QueryReq;
 import io.milvus.v2.service.vector.response.QueryResp;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,10 +73,11 @@ public class DocumentService {
     /**
      * 列出所有文档
      *
-     * <p>从摄取历史表中获取所有已处理的文档信息。</p>
+     * <p>从摄取历史表中获取所有已处理的文档信息。缓存5分钟。</p>
      *
      * @return 文档信息列表
      */
+    @Cacheable(value = "documents", key = "'all'")
     public List<DocumentInfo> listDocuments() {
         log.info("列出所有文档");
 
@@ -162,9 +165,12 @@ public class DocumentService {
      *   <li>删除摄取历史记录</li>
      * </ol>
      *
+     * <p>删除后清除统计数据和文档列表缓存。</p>
+     *
      * @param filePath 文件路径
      */
     @Transactional
+    @CacheEvict(value = {"stats", "documents"}, allEntries = true)
     public void deleteDocument(String filePath) {
         log.info("开始删除文档：filePath={}", filePath);
 
@@ -221,8 +227,11 @@ public class DocumentService {
      *   <li>成功/失败摄取数量</li>
      * </ul>
      *
+     * <p>缓存5分钟。</p>
+     *
      * @return 统计信息
      */
+    @Cacheable(value = "stats", key = "'collection'")
     public CollectionStats getCollectionStats() {
         log.info("获取Collection统计信息：collection={}", collectionName);
 

@@ -5,6 +5,7 @@ import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -59,13 +60,16 @@ public class RagController {
     private final IngestionService ingestionService;
     private final DocumentService documentService;
     private final RagService ragService;
+    private final CacheManager cacheManager;
 
     public RagController(IngestionService ingestionService,
                         DocumentService documentService,
-                        RagService ragService) {
+                        RagService ragService,
+                        CacheManager cacheManager) {
         this.ingestionService = ingestionService;
         this.documentService = documentService;
         this.ragService = ragService;
+        this.cacheManager = cacheManager;
     }
 
     /**
@@ -115,6 +119,10 @@ public class RagController {
 
             if (result.getSuccessCount() > 0) {
                 IngestionPipeline.IngestionResult ingestionResult = result.getSuccesses().get(0);
+
+                // 清除统计数据和文档列表缓存
+                clearStatsCache();
+
                 return ResponseEntity.ok(Map.of(
                         "message", "文档摄取成功",
                         "filename", file.getOriginalFilename(),
@@ -237,6 +245,9 @@ public class RagController {
 
         try {
             documentService.deleteDocument(id);
+
+            // 清除统计数据和文档列表缓存
+            clearStatsCache();
 
             return ResponseEntity.ok(Map.of(
                     "message", "文档已删除",
@@ -398,6 +409,26 @@ public class RagController {
             log.error("列出Collection失败：{}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "列出Collection失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 清除统计数据缓存
+     *
+     * <p>在文档摄取或删除后调用，确保Dashboard显示最新数据。</p>
+     */
+    private void clearStatsCache() {
+        try {
+            if (cacheManager.getCache("stats") != null) {
+                cacheManager.getCache("stats").clear();
+                log.debug("已清除stats缓存");
+            }
+            if (cacheManager.getCache("documents") != null) {
+                cacheManager.getCache("documents").clear();
+                log.debug("已清除documents缓存");
+            }
+        } catch (Exception e) {
+            log.warn("清除缓存失败：{}", e.getMessage());
         }
     }
 }
