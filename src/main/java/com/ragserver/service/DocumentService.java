@@ -171,26 +171,36 @@ public class DocumentService {
      */
     @Transactional
     @CacheEvict(value = {"stats", "documents"}, allEntries = true)
-    public void deleteDocument(String filePath) {
-        log.info("开始删除文档：filePath={}", filePath);
+    public void deleteDocument(String idOrPath) {
+        log.info("开始删除文档：idOrPath={}", idOrPath);
 
         try {
-            // 1. 查找摄取历史
-            List<IngestionHistory> histories = ingestionHistoryRepository.findByFilePathContaining(filePath);
-            if (histories.isEmpty()) {
-                log.warn("文档不存在：filePath={}", filePath);
-                return;
-            }
+            IngestionHistory history = null;
 
-            // 取第一个匹配的记录（精确匹配）
-            IngestionHistory history = histories.stream()
-                    .filter(h -> h.getFilePath().equals(filePath))
-                    .findFirst()
-                    .orElse(histories.get(0));
+            // 1. 先尝试通过文件哈希查找
+            Optional<IngestionHistory> historyOpt = ingestionHistoryRepository.findById(idOrPath);
+            if (historyOpt.isPresent()) {
+                history = historyOpt.get();
+                log.info("通过文件哈希找到文档：fileHash={}", idOrPath);
+            } else {
+                // 2. 通过文件路径查找
+                List<IngestionHistory> histories = ingestionHistoryRepository.findByFilePathContaining(idOrPath);
+                if (histories.isEmpty()) {
+                    log.warn("文档不存在：idOrPath={}", idOrPath);
+                    throw new RuntimeException("文档不存在：" + idOrPath);
+                }
+
+                // 取第一个匹配的记录（精确匹配）
+                history = histories.stream()
+                        .filter(h -> h.getFilePath().equals(idOrPath))
+                        .findFirst()
+                        .orElse(histories.get(0));
+                log.info("通过文件路径找到文档：filePath={}", idOrPath);
+            }
 
             String fileHash = history.getFileHash();
 
-            // 2. 从Milvus删除向量数据（通过metadata过滤）
+            // 3. 从Milvus删除向量数据（通过metadata过滤）
             try {
                 DeleteReq deleteReq = DeleteReq.builder()
                         .collectionName(collectionName)
@@ -205,14 +215,14 @@ public class DocumentService {
                 // 继续删除历史记录
             }
 
-            // 3. 删除摄取历史
+            // 4. 删除摄取历史
             ingestionHistoryRepository.delete(history);
             log.info("摄取历史删除成功：fileHash={}", fileHash);
 
-            log.info("文档删除完成：filePath={}, fileHash={}", filePath, fileHash);
+            log.info("文档删除完成：idOrPath={}, fileHash={}", idOrPath, fileHash);
 
         } catch (Exception e) {
-            log.error("删除文档失败：filePath={}, error={}", filePath, e.getMessage(), e);
+            log.error("删除文档失败：idOrPath={}, error={}", idOrPath, e.getMessage(), e);
             throw new RuntimeException("删除文档失败：" + e.getMessage(), e);
         }
     }
