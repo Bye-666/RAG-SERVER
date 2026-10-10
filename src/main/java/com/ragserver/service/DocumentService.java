@@ -216,6 +216,7 @@ public class DocumentService {
             }
 
             // 3. 从Milvus删除向量数据（通过ID前缀过滤）
+            // 必须先删除Milvus，如果失败则抛出异常，不继续删除数据库记录
             try {
                 // Milvus支持like查询，删除所有以该文件名开头的文档
                 String filter = String.format("id like \"%s%%\"", fileName.replace("\"", "\\\""));
@@ -230,10 +231,11 @@ public class DocumentService {
 
             } catch (Exception e) {
                 log.error("Milvus删除失败：fileName={}, fileHash={}, error={}", fileName, fileHash, e.getMessage(), e);
-                // 继续删除历史记录
+                // 抛出异常，回滚事务，不删除数据库记录
+                throw new RuntimeException("Milvus删除失败，操作已回滚：" + e.getMessage(), e);
             }
 
-            // 4. 删除摄取历史
+            // 4. Milvus删除成功后，再删除数据库记录
             ingestionHistoryRepository.delete(history);
             log.info("摄取历史删除成功：fileHash={}", fileHash);
 
