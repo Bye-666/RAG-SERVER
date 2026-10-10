@@ -231,4 +231,29 @@ public interface IngestionHistoryRepository extends JpaRepository<IngestionHisto
      * @return 删除的记录数量
      */
     long deleteByStatus(IngestionStatus status);
+
+    /**
+     * 按Collection分组统计
+     *
+     * <p>返回每个Collection的文档数和chunk数统计。</p>
+     *
+     * <p>示例：</p>
+     * <pre>{@code
+     * // 获取所有Collection的统计信息
+     * List<Object[]> stats = repository.groupByCollection();
+     * for (Object[] row : stats) {
+     *     String collection = (String) row[0];
+     *     Long docCount = (Long) row[1];
+     *     Long chunkCount = (Long) row[2];
+     *     log.info("Collection: {}, 文档数: {}, Chunk数: {}", collection, docCount, chunkCount);
+     * }
+     * }</pre>
+     *
+     * @return 统计结果列表，每行包含：[collectionName, documentCount, totalChunkCount]
+     */
+    @Query("SELECT COALESCE(h.collectionName, 'default'), COUNT(h), COALESCE(SUM(h.chunkCount), 0) " +
+           "FROM IngestionHistory h " +
+           "WHERE h.status = 'SUCCESS' " +
+           "GROUP BY h.collectionName")
+    List<Object[]> groupByCollection();
 }

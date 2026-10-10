@@ -199,19 +199,37 @@ public class DocumentService {
             }
 
             String fileHash = history.getFileHash();
+            String filePath = history.getFilePath();
 
-            // 3. 从Milvus删除向量数据（通过metadata过滤）
+            // 从文件路径中提取文件名（不含扩展名）作为文档ID前缀
+            String fileName = filePath;
+            if (fileName != null) {
+                int lastSlash = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
+                if (lastSlash >= 0) {
+                    fileName = fileName.substring(lastSlash + 1);
+                }
+                // 去除扩展名
+                int lastDot = fileName.lastIndexOf('.');
+                if (lastDot > 0) {
+                    fileName = fileName.substring(0, lastDot);
+                }
+            }
+
+            // 3. 从Milvus删除向量数据（通过ID前缀过滤）
             try {
+                // Milvus支持like查询，删除所有以该文件名开头的文档
+                String filter = String.format("id like \"%s%%\"", fileName.replace("\"", "\\\""));
+
                 DeleteReq deleteReq = DeleteReq.builder()
                         .collectionName(collectionName)
-                        .filter(String.format("doc_hash == \"%s\"", fileHash))
+                        .filter(filter)
                         .build();
 
                 milvusClient.delete(deleteReq);
-                log.info("Milvus向量数据删除成功：fileHash={}", fileHash);
+                log.info("Milvus向量数据删除成功：fileName={}, fileHash={}", fileName, fileHash);
 
             } catch (Exception e) {
-                log.error("Milvus删除失败：fileHash={}, error={}", fileHash, e.getMessage(), e);
+                log.error("Milvus删除失败：fileName={}, fileHash={}, error={}", fileName, fileHash, e.getMessage(), e);
                 // 继续删除历史记录
             }
 

@@ -1,5 +1,6 @@
 package com.ragserver.controller;
 
+import com.ragserver.repository.IngestionHistoryRepository;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.ImageStorageService;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,11 +51,14 @@ public class StatsController {
 
     private final DocumentService documentService;
     private final ImageStorageService imageStorageService;
+    private final IngestionHistoryRepository ingestionHistoryRepository;
 
     public StatsController(DocumentService documentService,
-                          ImageStorageService imageStorageService) {
+                          ImageStorageService imageStorageService,
+                          IngestionHistoryRepository ingestionHistoryRepository) {
         this.documentService = documentService;
         this.imageStorageService = imageStorageService;
+        this.ingestionHistoryRepository = ingestionHistoryRepository;
     }
 
     /**
@@ -85,6 +90,10 @@ public class StatsController {
             // 2. 获取图片统计
             ImageStorageService.StorageStats storageStats = imageStorageService.getStats();
 
+            // 3. 获取Collection数量
+            List<Object[]> collectionGroups = ingestionHistoryRepository.groupByCollection();
+            int totalCollections = collectionGroups.size();
+
             // 3. 构建响应 - 添加前端需要的字段
             Map<String, Object> overview = new HashMap<>();
             overview.put("totalDocuments", collectionStats.getTotalDocuments());
@@ -92,12 +101,13 @@ public class StatsController {
             overview.put("failedDocuments", collectionStats.getFailedDocuments());
             overview.put("vectorCount", collectionStats.getVectorCount());
             overview.put("totalChunks", collectionStats.getVectorCount()); // 别名
-            overview.put("totalCollections", 1); // 当前只有一个默认collection
+            overview.put("totalCollections", totalCollections);
             overview.put("imageCount", storageStats.getTotalImages());
 
-            log.info("系统总览统计：文档数={}, 向量数={}, 图片数={}",
+            log.info("系统总览统计：文档数={}, 向量数={}, Collection数={}, 图片数={}",
                     collectionStats.getTotalDocuments(),
                     collectionStats.getVectorCount(),
+                    totalCollections,
                     storageStats.getTotalImages());
 
             return ResponseEntity.ok(overview);
@@ -132,19 +142,27 @@ public class StatsController {
         log.info("获取Collection统计");
 
         try {
-            // 获取Collection统计
-            DocumentService.CollectionStats stats = documentService.getCollectionStats();
+            // 获取按Collection分组的统计
+            List<Object[]> collectionGroups = ingestionHistoryRepository.groupByCollection();
 
-            // 构建响应 - 返回数组格式
-            Map<String, Object> collection = new HashMap<>();
-            collection.put("collectionName", "knowledge_base");
-            collection.put("documentCount", stats.getTotalDocuments());
-            collection.put("chunkCount", stats.getVectorCount());
+            List<Map<String, Object>> collections = new ArrayList<>();
 
-            log.info("Collection统计：文档数={}, 向量数={}",
-                    stats.getTotalDocuments(), stats.getVectorCount());
+            for (Object[] row : collectionGroups) {
+                String collectionName = (String) row[0];
+                Long documentCount = (Long) row[1];
+                Long chunkCount = (Long) row[2];
 
-            return ResponseEntity.ok(List.of(collection));
+                Map<String, Object> collection = new HashMap<>();
+                collection.put("collectionName", collectionName != null ? collectionName : "default");
+                collection.put("documentCount", documentCount);
+                collection.put("chunkCount", chunkCount);
+
+                collections.add(collection);
+            }
+
+            log.info("Collection统计：共{}个collection", collections.size());
+
+            return ResponseEntity.ok(collections);
 
         } catch (Exception e) {
             log.error("获取Collection统计失败：{}", e.getMessage(), e);
