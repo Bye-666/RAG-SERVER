@@ -582,7 +582,8 @@
         async function loadDocuments() {
             try {
                 const response = await fetch('/api/documents');
-                const documents = await response.json();
+                const data = await response.json();
+                const documents = data.documents || [];
 
                 const tbody = document.querySelector('#documents-table tbody');
                 tbody.innerHTML = '';
