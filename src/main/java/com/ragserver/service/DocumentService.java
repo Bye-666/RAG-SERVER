@@ -344,12 +344,26 @@ public class DocumentService {
      */
     private DocumentInfo convertToDocumentInfo(IngestionHistory history) {
         DocumentInfo info = new DocumentInfo();
+        info.setId(history.getFileHash());
         info.setFileHash(history.getFileHash());
         info.setFilePath(history.getFilePath());
+
+        // 从完整路径中提取文件名作为source
+        String fileName = history.getFilePath();
+        if (fileName != null) {
+            int lastSlash = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
+            if (lastSlash >= 0) {
+                fileName = fileName.substring(lastSlash + 1);
+            }
+        }
+        info.setSource(fileName);
+
         info.setFileSize(history.getFileSize());
         info.setStatus(history.getStatus().name());
         info.setProcessedAt(history.getProcessedAt());
+        info.setCreatedAt(history.getProcessedAt());
         info.setChunkCount(history.getChunkCount());
+        info.setCollection(history.getCollectionName());
         return info;
     }
 
@@ -357,16 +371,26 @@ public class DocumentService {
      * 文档信息（列表用）
      */
     public static class DocumentInfo {
-        private String fileHash;
-        private String filePath;
-        private Long fileSize;
-        private String status;
-        private java.time.Instant processedAt;
-        private Integer chunkCount;
+        private String id;              // 文档ID（文件哈希）
+        private String fileHash;        // 文件哈希
+        private String source;          // 文档名称（文件名）
+        private String filePath;        // 完整文件路径
+        private Long fileSize;          // 文件大小
+        private String status;          // 状态
+        private String collection;      // Collection名称
+        private java.time.Instant processedAt;  // 处理时间
+        private java.time.Instant createdAt;    // 创建时间（同processedAt）
+        private Integer chunkCount;     // Chunk数量
 
         // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+
         public String getFileHash() { return fileHash; }
         public void setFileHash(String fileHash) { this.fileHash = fileHash; }
+
+        public String getSource() { return source; }
+        public void setSource(String source) { this.source = source; }
 
         public String getFilePath() { return filePath; }
         public void setFilePath(String filePath) { this.filePath = filePath; }
@@ -377,8 +401,14 @@ public class DocumentService {
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
 
+        public String getCollection() { return collection; }
+        public void setCollection(String collection) { this.collection = collection; }
+
         public java.time.Instant getProcessedAt() { return processedAt; }
         public void setProcessedAt(java.time.Instant processedAt) { this.processedAt = processedAt; }
+
+        public java.time.Instant getCreatedAt() { return createdAt; }
+        public void setCreatedAt(java.time.Instant createdAt) { this.createdAt = createdAt; }
 
         public Integer getChunkCount() { return chunkCount; }
         public void setChunkCount(Integer chunkCount) { this.chunkCount = chunkCount; }

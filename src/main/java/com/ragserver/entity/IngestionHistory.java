@@ -184,6 +184,21 @@ public class IngestionHistory {
     private Integer chunkCount;
 
     /**
+     * Collection名称
+     *
+     * <p>文档所属的Collection，用于组织和分类文档。</p>
+     *
+     * <p>示例：</p>
+     * <ul>
+     *   <li>tech_docs - 技术文档</li>
+     *   <li>product_manual - 产品手册</li>
+     *   <li>rag_knowledge_hub - 默认知识库</li>
+     * </ul>
+     */
+    @Column(name = "collection_name", length = 100)
+    private String collectionName;
+
+    /**
      * 摄取状态枚举
      *
      * <p>定义文档摄取的三种状态。</p>

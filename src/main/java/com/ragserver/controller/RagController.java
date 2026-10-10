@@ -104,15 +104,17 @@ public class RagController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "collection", required = false) String collection) {
 
-        log.info("接收文档摄取请求：filename={}, size={}", file.getOriginalFilename(), file.getSize());
+        log.info("接收文档摄取请求：filename={}, size={}, collection={}",
+                file.getOriginalFilename(), file.getSize(), collection);
 
         try {
             // 保存文件到临时目录
             java.nio.file.Path tempFile = java.nio.file.Files.createTempFile("upload_", ".pdf");
             file.transferTo(tempFile.toFile());
 
-            // 调用摄取服务
-            IngestionService.BatchIngestionResult result = ingestionService.ingestDocuments(List.of(tempFile));
+            // 调用摄取服务，传递collection参数
+            IngestionService.BatchIngestionResult result = ingestionService.ingestDocuments(
+                    List.of(tempFile), collection);
 
             // 清理临时文件
             java.nio.file.Files.deleteIfExists(tempFile);
@@ -127,6 +129,7 @@ public class RagController {
                         "message", "文档摄取成功",
                         "filename", file.getOriginalFilename(),
                         "chunkCount", ingestionResult.getChunksProcessed(),
+                        "collection", collection != null ? collection : "default",
                         "status", "SUCCESS"
                 ));
             } else {

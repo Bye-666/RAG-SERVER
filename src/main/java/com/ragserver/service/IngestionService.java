@@ -65,49 +65,31 @@ public class IngestionService {
     }
 
     /**
-     * 摄取单个文档
-     *
-     * <p>摄取完成后自动保存历史记录并清除统计数据缓存。</p>
-     *
-     * @param filePath 文件路径
-     * @return 摄取结果
-     */
-    @CacheEvict(value = {"stats", "documents"}, allEntries = true)
-    public IngestionPipeline.IngestionResult ingestDocument(Path filePath) {
-        log.info("开始摄取文档: {}", filePath);
-
-        try {
-            IngestionPipeline.IngestionResult result = pipeline.ingest(filePath);
-
-            // 保存摄取历史记录
-            saveIngestionHistory(filePath, result);
-
-            log.info("文档摄取成功: {}", filePath);
-            return result;
-        } catch (IngestionPipeline.IngestionException e) {
-            // 保存失败记录
-            saveFailedIngestionHistory(filePath, e);
-
-            log.error("文档摄取失败: {}", filePath, e);
-            throw new RuntimeException("摄取失败: " + filePath, e);
-        }
-    }
-
-    /**
      * 批量摄取文档
      *
      * @param filePaths 文件路径列表
      * @return 批量摄取结果
      */
     public BatchIngestionResult ingestDocuments(List<Path> filePaths) {
-        log.info("开始批量摄取: {}个文件", filePaths.size());
+        return ingestDocuments(filePaths, null);
+    }
+
+    /**
+     * 批量摄取文档（支持指定Collection）
+     *
+     * @param filePaths 文件路径列表
+     * @param collectionName Collection名称（可选）
+     * @return 批量摄取结果
+     */
+    public BatchIngestionResult ingestDocuments(List<Path> filePaths, String collectionName) {
+        log.info("开始批量摄取: {}个文件, collection={}", filePaths.size(), collectionName);
 
         BatchIngestionResult batchResult = new BatchIngestionResult();
         batchResult.setTotalFiles(filePaths.size());
 
         for (Path filePath : filePaths) {
             try {
-                IngestionPipeline.IngestionResult result = ingestDocument(filePath);
+                IngestionPipeline.IngestionResult result = ingestDocumentInternal(filePath, collectionName);
                 batchResult.addSuccess(result);
             } catch (Exception e) {
                 batchResult.addFailure(filePath.toString(), e.getMessage());
@@ -121,9 +103,23 @@ public class IngestionService {
     }
 
     /**
+     * 摄取单个文档（内部方法，支持指定Collection）
+     */
+    private IngestionPipeline.IngestionResult ingestDocumentInternal(Path filePath, String collectionName) {
+        try {
+            IngestionPipeline.IngestionResult result = pipeline.ingest(filePath);
+            saveIngestionHistory(filePath, result, collectionName);
+            return result;
+        } catch (IngestionPipeline.IngestionException e) {
+            saveFailedIngestionHistory(filePath, e, collectionName);
+            throw new RuntimeException("摄取失败: " + filePath, e);
+        }
+    }
+
+    /**
      * 保存成功的摄取历史记录
      */
-    private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result) {
+    private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result, String collectionName) {
         try {
             // 计算文件哈希
             String fileHash = fileIntegrityService.computeFileHash(filePath);
@@ -135,6 +131,7 @@ public class IngestionService {
             history.setChunkCount(result.getChunksProcessed());
             history.setStatus(IngestionHistory.IngestionStatus.SUCCESS);
             history.setProcessedAt(Instant.now());
+            history.setCollectionName(collectionName);
 
             historyRepository.save(history);
             log.debug("已保存摄取历史记录: {}", history.getFileHash());
@@ -146,7 +143,7 @@ public class IngestionService {
     /**
      * 保存失败的摄取历史记录
      */
-    private void saveFailedIngestionHistory(Path filePath, IngestionPipeline.IngestionException e) {
+    private void saveFailedIngestionHistory(Path filePath, IngestionPipeline.IngestionException e, String collectionName) {
         try {
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
@@ -156,6 +153,7 @@ public class IngestionService {
             history.setStatus(IngestionHistory.IngestionStatus.FAILED);
             history.setProcessedAt(Instant.now());
             history.setErrorMsg(e.getMessage());
+            history.setCollectionName(collectionName);
 
             historyRepository.save(history);
             log.debug("已保存失败的摄取历史记录: {}", filePath);
