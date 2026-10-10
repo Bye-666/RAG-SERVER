@@ -2,6 +2,7 @@ package com.ragserver.service;
 
 import com.ragserver.entity.IngestionHistory;
 import com.ragserver.ingestion.IngestionPipeline;
+import com.ragserver.ingestion.loader.FileIntegrityService;
 import com.ragserver.repository.IngestionHistoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -49,14 +50,17 @@ public class IngestionService {
 
     private final IngestionPipeline pipeline;
     private final IngestionHistoryRepository historyRepository;
+    private final FileIntegrityService fileIntegrityService;
 
     /**
      * 构造函数
      */
     public IngestionService(IngestionPipeline pipeline,
-                           IngestionHistoryRepository historyRepository) {
+                           IngestionHistoryRepository historyRepository,
+                           FileIntegrityService fileIntegrityService) {
         this.pipeline = pipeline;
         this.historyRepository = historyRepository;
+        this.fileIntegrityService = fileIntegrityService;
         log.info("IngestionService初始化完成");
     }
 
@@ -121,14 +125,12 @@ public class IngestionService {
      */
     private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result) {
         try {
+            // 计算文件哈希
+            String fileHash = fileIntegrityService.computeFileHash(filePath);
+
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
-
-            // 从元数据获取file_hash并转换为String
-            Object fileHashObj = result.getSourceDocument().getMetadata().get("file_hash");
-            String fileHash = fileHashObj != null ? fileHashObj.toString() : "UNKNOWN_" + System.currentTimeMillis();
             history.setFileHash(fileHash);
-
             history.setFileSize(filePath.toFile().length());
             history.setChunkCount(result.getChunksProcessed());
             history.setStatus(IngestionHistory.IngestionStatus.SUCCESS);
