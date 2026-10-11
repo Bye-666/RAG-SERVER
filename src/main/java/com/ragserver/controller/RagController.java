@@ -229,6 +229,46 @@ public class RagController {
     }
 
     /**
+     * 获取文档的所有chunks
+     *
+     * <h3>响应示例</h3>
+     * <pre>{@code
+     * {
+     *   "chunks": [
+     *     {
+     *       "id": "doc_chunk_1",
+     *       "text": "这是第一段文本内容...",
+     *       "source": "document.pdf",
+     *       "page": 1
+     *     }
+     *   ],
+     *   "total": 25
+     * }
+     * }</pre>
+     *
+     * @param id 文档ID（文件哈希或文件路径）
+     * @return chunks列表
+     */
+    @GetMapping("/documents/{id}/chunks")
+    public ResponseEntity<Map<String, Object>> getDocumentChunks(@PathVariable String id) {
+        log.info("获取文档chunks：id={}", id);
+
+        try {
+            List<DocumentService.ChunkInfo> chunks = documentService.getDocumentChunks(id);
+
+            return ResponseEntity.ok(Map.of(
+                    "chunks", chunks,
+                    "total", chunks.size()
+            ));
+
+        } catch (Exception e) {
+            log.error("获取文档chunks失败：id={}, error={}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "获取文档chunks失败：" + e.getMessage()));
+        }
+    }
+
+    /**
      * 删除文档
      *
      * <h3>响应示例</h3>

@@ -309,6 +309,113 @@ public class DocumentService {
     }
 
     /**
+     * 获取文档的所有chunks
+     *
+     * <p>从Milvus查询指定文档的所有chunk内容。</p>
+     *
+     * @param fileHash 文件哈希或文件路径
+     * @return chunk列表
+     */
+    public List<ChunkInfo> getDocumentChunks(String fileHash) {
+        log.info("获取文档chunks：fileHash={}", fileHash);
+
+        try {
+            // 1. 从摄取历史获取文档信息
+            IngestionHistory history = null;
+
+            Optional<IngestionHistory> historyOpt = ingestionHistoryRepository.findById(fileHash);
+            if (historyOpt.isPresent()) {
+                history = historyOpt.get();
+            } else {
+                // 通过文件路径查找
+                List<IngestionHistory> histories = ingestionHistoryRepository.findByFilePathContaining(fileHash);
+                if (histories.isEmpty()) {
+                    throw new RuntimeException("文档不存在：" + fileHash);
+                }
+                history = histories.stream()
+                        .filter(h -> h.getFilePath().equals(fileHash))
+                        .findFirst()
+                        .orElse(histories.get(0));
+            }
+
+            String filePath = history.getFilePath();
+
+            // 从文件路径中提取文件名（不含扩展名）作为文档ID前缀
+            String fileName = filePath;
+            if (fileName != null) {
+                int lastSlash = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
+                if (lastSlash >= 0) {
+                    fileName = fileName.substring(lastSlash + 1);
+                }
+                // 去除扩展名
+                int lastDot = fileName.lastIndexOf('.');
+                if (lastDot > 0) {
+                    fileName = fileName.substring(0, lastDot);
+                }
+            }
+
+            // 2. 从Milvus查询chunks
+            String filter = String.format("id like \"%s%%\"", fileName.replace("\"", "\\\""));
+
+            QueryReq queryReq = QueryReq.builder()
+                    .collectionName(collectionName)
+                    .filter(filter)
+                    .outputFields(List.of("id", "text", "metadata"))
+                    .limit(1000)  // 最多返回1000个chunk
+                    .build();
+
+            QueryResp queryResp = milvusClient.query(queryReq);
+            List<QueryResp.QueryResult> results = queryResp.getQueryResults();
+
+            // 3. 转换为ChunkInfo
+            List<ChunkInfo> chunks = new ArrayList<>();
+            for (QueryResp.QueryResult result : results) {
+                ChunkInfo chunk = new ChunkInfo();
+                chunk.setId((String) result.getEntity().get("id"));
+                chunk.setText((String) result.getEntity().get("text"));
+
+                // 从metadata中提取source和page信息
+                Object metadataObj = result.getEntity().get("metadata");
+                if (metadataObj != null) {
+                    String metadata = metadataObj.toString();
+                    // metadata是JSON格式，简单解析
+                    if (metadata.contains("\"source\"")) {
+                        int sourceStart = metadata.indexOf("\"source\"") + 10;
+                        int sourceEnd = metadata.indexOf("\"", sourceStart);
+                        if (sourceEnd > sourceStart) {
+                            chunk.setSource(metadata.substring(sourceStart, sourceEnd));
+                        }
+                    }
+                    if (metadata.contains("\"page\"")) {
+                        int pageStart = metadata.indexOf("\"page\"") + 7;
+                        int pageEnd = metadata.indexOf(",", pageStart);
+                        if (pageEnd == -1) {
+                            pageEnd = metadata.indexOf("}", pageStart);
+                        }
+                        if (pageEnd > pageStart) {
+                            try {
+                                String pageStr = metadata.substring(pageStart, pageEnd).trim();
+                                chunk.setPage(Integer.parseInt(pageStr));
+                            } catch (NumberFormatException e) {
+                                log.debug("无法解析页码：{}", metadata);
+                            }
+                        }
+                    }
+                }
+
+                chunks.add(chunk);
+            }
+
+            log.info("获取文档chunks成功：fileHash={}, chunkCount={}", fileHash, chunks.size());
+            return chunks;
+
+        } catch (Exception e) {
+            log.error("获取文档chunks失败：fileHash={}, error={}", fileHash, e.getMessage(), e);
+            throw new RuntimeException("获取文档chunks失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
      * 批量删除Collection（联动清理）
      *
      * <p>删除指定Collection的所有数据：</p>
@@ -500,5 +607,28 @@ public class DocumentService {
 
         public Long getFailedDocuments() { return failedDocuments; }
         public void setFailedDocuments(Long failedDocuments) { this.failedDocuments = failedDocuments; }
+    }
+
+    /**
+     * Chunk信息
+     */
+    public static class ChunkInfo {
+        private String id;
+        private String text;
+        private String source;
+        private Integer page;
+
+        // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+
+        public String getText() { return text; }
+        public void setText(String text) { this.text = text; }
+
+        public String getSource() { return source; }
+        public void setSource(String source) { this.source = source; }
+
+        public Integer getPage() { return page; }
+        public void setPage(Integer page) { this.page = page; }
     }
 }

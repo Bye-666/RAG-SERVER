@@ -313,6 +313,111 @@
             opacity: 0.5;
         }
 
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .chunk-item {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 3px solid #3498db;
+        }
+
+        .chunk-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .chunk-id {
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .chunk-page {
+            background: #3498db;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .chunk-text {
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
         /* 响应式 */
         @media (max-width: 768px) {
             .container {
@@ -331,6 +436,11 @@
 
             .sidebar nav a {
                 white-space: nowrap;
+            }
+
+            .modal-content {
+                width: 95%;
+                max-height: 90vh;
             }
         }
     </style>
@@ -431,6 +541,22 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chunks查看模态框 -->
+            <div id="chunks-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="chunks-modal-title">文档切块内容</h2>
+                        <button class="modal-close" onclick="closeChunksModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="chunks-modal-body">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            加载中...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -599,6 +725,7 @@
                                 <td>${doc.chunkCount || '-'}</td>
                                 <td>${doc.createdAt ? new Date(doc.createdAt).toLocaleString() : '-'}</td>
                                 <td>
+                                    <button class="btn btn-sm" onclick="viewChunks('${doc.id}', '${escapeHtml(doc.source || doc.id)}')">查看切块</button>
                                     <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}')">删除</button>
                                 </td>
                             </tr>
@@ -608,6 +735,91 @@
             } catch (error) {
                 console.error('加载文档失败:', error);
             }
+        }
+
+        // 查看文档chunks
+        async function viewChunks(docId, docName) {
+            const modal = document.getElementById('chunks-modal');
+            const title = document.getElementById('chunks-modal-title');
+            const body = document.getElementById('chunks-modal-body');
+
+            title.textContent = `切块内容 - ${docName}`;
+            body.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+            modal.classList.add('active');
+
+            try {
+                const response = await fetch(`/api/documents/${docId}/chunks`);
+                const data = await response.json();
+
+                if (data.error) {
+                    body.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                            <p>❌ ${data.error}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const chunks = data.chunks || [];
+
+                if (chunks.length === 0) {
+                    body.innerHTML = `
+                        <div class="empty-state">
+                            <div>📦</div>
+                            <p>该文档暂无切块数据</p>
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = `
+                        <div style="margin-bottom: 16px; color: #666;">
+                            共 ${chunks.length} 个切块
+                        </div>
+                        ${chunks.map((chunk, index) => `
+                            <div class="chunk-item">
+                                <div class="chunk-header">
+                                    <span class="chunk-id">Chunk #${index + 1} - ${chunk.id || 'N/A'}</span>
+                                    ${chunk.page ? `<span class="chunk-page">第 ${chunk.page} 页</span>` : ''}
+                                </div>
+                                <div class="chunk-text">${escapeHtml(chunk.text || '(空内容)')}</div>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+            } catch (error) {
+                console.error('加载chunks失败:', error);
+                body.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #e74c3c;">
+                        <p>❌ 加载失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 关闭模态框
+        function closeChunksModal() {
+            const modal = document.getElementById('chunks-modal');
+            modal.classList.remove('active');
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('chunks-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'chunks-modal') {
+                closeChunksModal();
+            }
+        });
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeChunksModal();
+            }
+        });
+
+        // HTML转义函数
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // 文件上传
