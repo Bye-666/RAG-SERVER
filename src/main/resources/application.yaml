@@ -36,11 +36,13 @@ spring:
       # API基础URL
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       # LLM模型名称
-      model: qwen-max
+      model: qwen3.7-flash
       # Embedding模型名称
-      embedding-model: text-embedding-v4
+      embedding-model: qwen3.7-text-embedding
       # Embedding向量维度
       embedding-dimension: 1024
+      # Vision模型名称
+      vision-model: qwen-image-3.0
       # API超时时间（毫秒）
       timeout-ms: 60000
       # QPS限流（每秒请求数）
