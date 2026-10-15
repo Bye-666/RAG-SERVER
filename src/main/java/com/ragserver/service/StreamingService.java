@@ -100,17 +100,11 @@ public class StreamingService {
         ChatRequest request = new ChatRequest();
         request.setModel(properties.getModel());
         request.setMessages(List.of(ChatRequest.Message.user(prompt)));
+        request.setStream(true);  // 关键：启用流式输出
 
         return webClient.post()
                 .uri("/chat/completions")
-                .bodyValue(Map.of(
-                    "model", request.getModel(),
-                    "input", Map.of("messages", request.getMessages()),
-                    "parameters", Map.of(
-                        "incremental_output", true,
-                        "result_format", "message"
-                    )
-                ))
+                .bodyValue(request)  // 直接发送ChatRequest对象
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
                 .bodyToFlux(String.class)

@@ -695,6 +695,12 @@
                         </label>
                     </div>
 
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="stream-input" checked> 流式输出
+                        </label>
+                    </div>
+
                     <button class="btn" onclick="executeQuery()">🔍 执行查询</button>
                 </div>
 
@@ -1039,11 +1045,23 @@
 
             const topK = parseInt(document.getElementById('topk-input').value);
             const enableRerank = document.getElementById('rerank-input').checked;
+            const enableStream = document.getElementById('stream-input').checked;
 
             document.getElementById('query-results').style.display = 'block';
             document.getElementById('query-answer').innerHTML = '<div class="loading"><div class="spinner"></div>查询中...</div>';
             document.getElementById('query-sources').innerHTML = '';
 
+            if (enableStream) {
+                // 流式查询
+                executeStreamQuery(query, topK, enableRerank);
+            } else {
+                // 普通查询
+                executeNormalQuery(query, topK, enableRerank);
+            }
+        }
+
+        // 普通查询
+        async function executeNormalQuery(query, topK, enableRerank) {
             try {
                 const response = await fetch('/api/query', {
                     method: 'POST',
@@ -1177,6 +1195,158 @@
         function showNotification(message, type) {
             // 简单实现，可以后续使用更好的通知库
             alert(message);
+        }
+
+        // 流式查询
+        async function executeStreamQuery(query, topK, enableRerank) {
+            try {
+                const streamStartTime = Date.now();
+
+                // 第一步：先用普通查询获取检索文档
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
+                        <div style="color: #666; font-size: 14px; margin-bottom: 8px;">🔍 正在检索文档...</div>
+                    </div>
+                `;
+
+                const retrievalStartTime = Date.now();
+                const metaResponse = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: query, topK, enableRerank })
+                });
+
+                const metaResult = await metaResponse.json();
+                const retrievalDuration = Date.now() - retrievalStartTime;
+
+                // 显示检索到的文档和检索耗时
+                let sourcesHtml = '';
+                if (metaResult.sources && metaResult.sources.length > 0) {
+                    sourcesHtml = `
+                        <div style="margin-bottom: 12px; font-weight: 600;">
+                            检索到 ${metaResult.sources.length} 个相关文档 (耗时: ${retrievalDuration}ms)
+                        </div>
+                        ${metaResult.sources.map((src, i) => `
+                            <div style="padding: 12px; margin-top: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <strong style="color: #2c3e50;">[${i + 1}] ${src.id || 'Document'}</strong>
+                                    ${src.metadata && src.metadata.source ? `<span style="font-size: 12px; color: #666;">来源: ${src.metadata.source}</span>` : ''}
+                                </div>
+                                <div style="color: #555; line-height: 1.5; max-height: 120px; overflow: hidden; text-overflow: ellipsis;">
+                                    ${escapeHtml(src.text || '').substring(0, 300)}${src.text && src.text.length > 300 ? '...' : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+
+                    // 显示检索详细耗时
+                    if (metaResult.timing && metaResult.timing.retrieval) {
+                        const retrieval = metaResult.timing.retrieval;
+                        sourcesHtml += `
+                            <div style="margin-top: 12px; padding: 8px; background: rgba(52, 152, 219, 0.1); border-radius: 4px; font-size: 12px;">
+                                <strong>检索详情：</strong>
+                                Dense: ${retrieval.denseSearch}ms |
+                                Sparse: ${retrieval.sparseSearch}ms |
+                                RRF: ${retrieval.rrfFusion}ms |
+                                Rerank: ${retrieval.reranker}ms |
+                                总计: ${retrieval.total}ms
+                            </div>
+                        `;
+                    }
+                } else {
+                    sourcesHtml = '<div style="color: #999;">未检索到相关文档</div>';
+                }
+                document.getElementById('query-sources').innerHTML = sourcesHtml;
+
+                // 第二步：流式生成答案
+                const generationStartTime = Date.now();
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
+                        <div style="color: #666; font-size: 14px; margin-bottom: 8px;">⚡ 正在实时生成答案...</div>
+                        <div id="stream-answer" style="min-height: 40px;"></div>
+                    </div>
+                `;
+
+                const url = `/api/query/stream?question=${encodeURIComponent(query)}&topK=${topK}&enableRerank=${enableRerank}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error('流式查询失败');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) {
+                        break;
+                    }
+
+                    const chunk = decoder.decode(value, { stream: true });
+
+                    // 解析SSE格式：移除 "data:" 前缀
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) {
+                            const content = line.substring(5); // 移除 "data:"
+                            if (content.trim()) {
+                                accumulatedText += content;
+                                // 每次接收到新内容都立即渲染，实现逐字显示
+                                document.getElementById('stream-answer').innerHTML = formatAnswer(accumulatedText);
+                            }
+                        }
+                    }
+                }
+
+                // 流式完成，计算总耗时
+                const generationDuration = Date.now() - generationStartTime;
+                const totalDuration = Date.now() - streamStartTime;
+
+                // 显示最终答案和耗时统计
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
+                        ${formatAnswer(accumulatedText)}
+                    </div>
+                    <div style="margin-top: 12px; padding: 8px; background: rgba(46, 204, 113, 0.1); border-radius: 4px; font-size: 12px;">
+                        <strong>⏱️ 耗时统计：</strong>
+                        检索: ${retrievalDuration}ms |
+                        生成: ${generationDuration}ms |
+                        总计: ${totalDuration}ms (${(totalDuration/1000).toFixed(2)}秒)
+                    </div>
+                `;
+
+            } catch (error) {
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 16px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+                        查询失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 格式化答案（支持基本的markdown样式）
+        function formatAnswer(text) {
+            // 转义HTML
+            let formatted = escapeHtml(text);
+
+            // 暂时不处理引用来源，保持完整显示
+
+            // 处理换行
+            formatted = formatted.replace(/\n/g, '<br>');
+
+            // 处理加粗 **text**
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            // 处理列表项
+            formatted = formatted.replace(/^(\d+)\.\s/gm, '<br><strong>$1.</strong> ');
+
+            // 处理引用块 > text
+            formatted = formatted.replace(/&gt;\s*(.+?)<br>/g, '<blockquote style="border-left: 3px solid #3498db; padding-left: 12px; margin: 8px 0; color: #555;">$1</blockquote>');
+
+            return formatted;
         }
 
         // 初始加载
