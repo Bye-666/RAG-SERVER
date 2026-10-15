@@ -359,11 +359,20 @@ public class RagController {
         }
 
         try {
-            String answer = ragService.query(question, topK, enableRerank);
+            RagService.QueryResult queryResult = ragService.query(question, topK, enableRerank);
+
+            // 构建耗时统计信息
+            Map<String, Object> timing = new HashMap<>();
+            timing.put("retrieval", queryResult.getRetrievalDurationMs());
+            timing.put("promptBuild", queryResult.getPromptBuildDurationMs());
+            timing.put("llmGeneration", queryResult.getLlmGenerationDurationMs());
+            timing.put("citationBuild", queryResult.getCitationBuildDurationMs());
+            timing.put("total", queryResult.getTotalDurationMs());
 
             Map<String, Object> result = new HashMap<>();
             result.put("question", question);
-            result.put("answer", answer);
+            result.put("answer", queryResult.getAnswer());
+            result.put("timing", timing);
             result.put("sources", List.of()); // TODO: 从RagService获取sources
 
             return ResponseEntity.ok(result);

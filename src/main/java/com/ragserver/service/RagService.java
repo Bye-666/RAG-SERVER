@@ -82,7 +82,8 @@ public class RagService {
      * @return 生成的答案（带引用）
      */
     public String query(String question) {
-        return query(question, DEFAULT_TOP_K, DEFAULT_ENABLE_RERANK);
+        QueryResult result = query(question, DEFAULT_TOP_K, DEFAULT_ENABLE_RERANK);
+        return result.getAnswer();
     }
 
     /**
@@ -98,10 +99,12 @@ public class RagService {
      * @return 生成的答案（带引用）
      */
     @Cacheable(value = "ragQuery", key = "#question + '_' + #topK + '_' + #enableRerank")
-    public String query(String question, int topK, boolean enableRerank) {
+    public QueryResult query(String question, int topK, boolean enableRerank) {
         log.info("开始RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
-        long startTime = System.currentTimeMillis();
+        long totalStartTime = System.currentTimeMillis();
+        QueryResult result = new QueryResult();
+
         String answer = null;
         String status = "SUCCESS";
         String errorMessage = null;
@@ -109,42 +112,57 @@ public class RagService {
 
         try {
             // 1. 检索相关文档
+            long stepStart = System.currentTimeMillis();
             List<Document> context = retriever.retrieve(question, topK, enableRerank);
+            result.setRetrievalDurationMs(System.currentTimeMillis() - stepStart);
             retrievedDocsCount = context.size();
-            log.debug("检索完成：获取{}个文档", context.size());
+            log.debug("检索完成：获取{}个文档，耗时{}ms", context.size(), result.getRetrievalDurationMs());
 
             // 检查是否有检索结果
             if (context.isEmpty()) {
                 log.warn("未检索到相关文档");
                 status = "NO_RESULTS";
                 answer = "抱歉，在知识库中未找到与您问题相关的信息。";
+                result.setAnswer(answer);
+                result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
 
                 // 记录查询历史
                 saveQueryHistory(question, answer, topK, enableRerank,
-                    System.currentTimeMillis() - startTime, status, retrievedDocsCount, null);
+                    result.getTotalDurationMs(), status, retrievedDocsCount, null);
 
-                return answer;
+                return result;
             }
 
             // 2. 构建Prompt
+            stepStart = System.currentTimeMillis();
             String prompt = promptService.buildRagPrompt(question, context);
-            log.debug("Prompt构建完成，长度：{}", prompt.length());
+            result.setPromptBuildDurationMs(System.currentTimeMillis() - stepStart);
+            log.debug("Prompt构建完成，长度：{}，耗时{}ms", prompt.length(), result.getPromptBuildDurationMs());
 
             // 3. LLM生成答案
+            stepStart = System.currentTimeMillis();
             answer = chatClient.chat(prompt);
-            log.debug("LLM生成完成，答案长度：{}", answer.length());
+            result.setLlmGenerationDurationMs(System.currentTimeMillis() - stepStart);
+            log.debug("LLM生成完成，答案长度：{}，耗时{}ms", answer.length(), result.getLlmGenerationDurationMs());
 
             // 4. 添加引用
+            stepStart = System.currentTimeMillis();
             String citations = promptService.buildCitations(context);
+            result.setCitationBuildDurationMs(System.currentTimeMillis() - stepStart);
 
             // 5. 组合答案和引用
-            String result = answer + "\n\n" + citations;
+            String finalAnswer = answer + "\n\n" + citations;
+            result.setAnswer(finalAnswer);
+            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
 
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            log.info("RAG查询完成：耗时{}ms", elapsedTime);
+            log.info("RAG查询完成：总耗时{}ms [检索:{}ms, Prompt:{}ms, LLM:{}ms, 引用:{}ms]",
+                result.getTotalDurationMs(), result.getRetrievalDurationMs(),
+                result.getPromptBuildDurationMs(), result.getLlmGenerationDurationMs(),
+                result.getCitationBuildDurationMs());
 
             // 记录查询历史
-            saveQueryHistory(question, result, topK, enableRerank, elapsedTime, status, retrievedDocsCount, null);
+            saveQueryHistory(question, finalAnswer, topK, enableRerank,
+                result.getTotalDurationMs(), status, retrievedDocsCount, null);
 
             return result;
 
@@ -152,10 +170,11 @@ public class RagService {
             log.error("RAG查询失败：question={}, error={}", question, e.getMessage(), e);
             status = "FAILED";
             errorMessage = e.getMessage();
+            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
 
             // 记录失败的查询历史
             saveQueryHistory(question, null, topK, enableRerank,
-                System.currentTimeMillis() - startTime, status, retrievedDocsCount, errorMessage);
+                result.getTotalDurationMs(), status, retrievedDocsCount, errorMessage);
 
             throw new RuntimeException("RAG查询失败：" + e.getMessage(), e);
         }
@@ -326,6 +345,37 @@ public class RagService {
         } catch (Exception e) {
             log.warn("保存查询历史失败（不影响主流程）：{}", e.getMessage());
         }
+    }
+
+    /**
+     * 查询结果（包含耗时统计）
+     */
+    public static class QueryResult {
+        private String answer;
+        private long retrievalDurationMs;      // 检索耗时
+        private long promptBuildDurationMs;    // Prompt构建耗时
+        private long llmGenerationDurationMs;  // LLM生成耗时
+        private long citationBuildDurationMs;  // 引用构建耗时
+        private long totalDurationMs;          // 总耗时
+
+        // Getters and Setters
+        public String getAnswer() { return answer; }
+        public void setAnswer(String answer) { this.answer = answer; }
+
+        public long getRetrievalDurationMs() { return retrievalDurationMs; }
+        public void setRetrievalDurationMs(long retrievalDurationMs) { this.retrievalDurationMs = retrievalDurationMs; }
+
+        public long getPromptBuildDurationMs() { return promptBuildDurationMs; }
+        public void setPromptBuildDurationMs(long promptBuildDurationMs) { this.promptBuildDurationMs = promptBuildDurationMs; }
+
+        public long getLlmGenerationDurationMs() { return llmGenerationDurationMs; }
+        public void setLlmGenerationDurationMs(long llmGenerationDurationMs) { this.llmGenerationDurationMs = llmGenerationDurationMs; }
+
+        public long getCitationBuildDurationMs() { return citationBuildDurationMs; }
+        public void setCitationBuildDurationMs(long citationBuildDurationMs) { this.citationBuildDurationMs = citationBuildDurationMs; }
+
+        public long getTotalDurationMs() { return totalDurationMs; }
+        public void setTotalDurationMs(long totalDurationMs) { this.totalDurationMs = totalDurationMs; }
     }
 }
 

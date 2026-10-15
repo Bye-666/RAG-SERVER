@@ -1053,11 +1053,59 @@
 
                 const result = await response.json();
 
-                document.getElementById('query-answer').innerHTML = `
+                // 构建答案显示
+                let answerHtml = `
                     <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
                         ${result.answer || '无回答'}
                     </div>
                 `;
+
+                // 构建耗时统计显示
+                if (result.timing) {
+                    const timing = result.timing;
+                    const total = timing.total || 0;
+
+                    const percentages = {
+                        retrieval: ((timing.retrieval / total) * 100).toFixed(1),
+                        promptBuild: ((timing.promptBuild / total) * 100).toFixed(1),
+                        llmGeneration: ((timing.llmGeneration / total) * 100).toFixed(1),
+                        citationBuild: ((timing.citationBuild / total) * 100).toFixed(1)
+                    };
+
+                    answerHtml += `
+                        <div class="timing-stats" style="margin-top: 16px;">
+                            <div class="timing-header">⏱️ 查询耗时：总耗时 ${total}ms (${(total/1000).toFixed(2)}秒)</div>
+
+                            <div class="timing-bar-container">
+                                ${timing.retrieval > 0 ? `<div class="timing-bar timing-bar-loading" style="width: ${percentages.retrieval}%;" title="检索: ${timing.retrieval}ms">${percentages.retrieval >= 8 ? percentages.retrieval + '%' : ''}</div>` : ''}
+                                ${timing.promptBuild > 0 ? `<div class="timing-bar timing-bar-splitting" style="width: ${percentages.promptBuild}%;" title="Prompt构建: ${timing.promptBuild}ms">${percentages.promptBuild >= 8 ? percentages.promptBuild + '%' : ''}</div>` : ''}
+                                ${timing.llmGeneration > 0 ? `<div class="timing-bar timing-bar-embedding" style="width: ${percentages.llmGeneration}%;" title="LLM生成: ${timing.llmGeneration}ms">${percentages.llmGeneration >= 8 ? percentages.llmGeneration + '%' : ''}</div>` : ''}
+                                ${timing.citationBuild > 0 ? `<div class="timing-bar timing-bar-storage" style="width: ${percentages.citationBuild}%;" title="引用构建: ${timing.citationBuild}ms">${percentages.citationBuild >= 8 ? percentages.citationBuild + '%' : ''}</div>` : ''}
+                            </div>
+
+                            <div class="timing-details">
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-loading"></span>
+                                    检索: ${timing.retrieval}ms (${percentages.retrieval}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-splitting"></span>
+                                    Prompt构建: ${timing.promptBuild}ms (${percentages.promptBuild}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-embedding"></span>
+                                    LLM生成: ${timing.llmGeneration}ms (${percentages.llmGeneration}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-storage"></span>
+                                    引用构建: ${timing.citationBuild}ms (${percentages.citationBuild}%)
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('query-answer').innerHTML = answerHtml;
 
                 if (result.sources && result.sources.length > 0) {
                     document.getElementById('query-sources').innerHTML = result.sources.map((src, i) => `
