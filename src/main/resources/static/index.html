@@ -1065,8 +1065,12 @@
                     const timing = result.timing;
                     const total = timing.total || 0;
 
+                    // 检索阶段详细耗时
+                    const retrieval = timing.retrieval || {};
+                    const retrievalTotal = retrieval.total || 0;
+
                     const percentages = {
-                        retrieval: ((timing.retrieval / total) * 100).toFixed(1),
+                        retrieval: ((retrievalTotal / total) * 100).toFixed(1),
                         promptBuild: ((timing.promptBuild / total) * 100).toFixed(1),
                         llmGeneration: ((timing.llmGeneration / total) * 100).toFixed(1),
                         citationBuild: ((timing.citationBuild / total) * 100).toFixed(1)
@@ -1077,17 +1081,37 @@
                             <div class="timing-header">⏱️ 查询耗时：总耗时 ${total}ms (${(total/1000).toFixed(2)}秒)</div>
 
                             <div class="timing-bar-container">
-                                ${timing.retrieval > 0 ? `<div class="timing-bar timing-bar-loading" style="width: ${percentages.retrieval}%;" title="检索: ${timing.retrieval}ms">${percentages.retrieval >= 8 ? percentages.retrieval + '%' : ''}</div>` : ''}
+                                ${retrievalTotal > 0 ? `<div class="timing-bar timing-bar-loading" style="width: ${percentages.retrieval}%;" title="检索: ${retrievalTotal}ms">${percentages.retrieval >= 8 ? percentages.retrieval + '%' : ''}</div>` : ''}
                                 ${timing.promptBuild > 0 ? `<div class="timing-bar timing-bar-splitting" style="width: ${percentages.promptBuild}%;" title="Prompt构建: ${timing.promptBuild}ms">${percentages.promptBuild >= 8 ? percentages.promptBuild + '%' : ''}</div>` : ''}
                                 ${timing.llmGeneration > 0 ? `<div class="timing-bar timing-bar-embedding" style="width: ${percentages.llmGeneration}%;" title="LLM生成: ${timing.llmGeneration}ms">${percentages.llmGeneration >= 8 ? percentages.llmGeneration + '%' : ''}</div>` : ''}
                                 ${timing.citationBuild > 0 ? `<div class="timing-bar timing-bar-storage" style="width: ${percentages.citationBuild}%;" title="引用构建: ${timing.citationBuild}ms">${percentages.citationBuild >= 8 ? percentages.citationBuild + '%' : ''}</div>` : ''}
                             </div>
 
                             <div class="timing-details">
-                                <div class="timing-item">
+                                <div class="timing-item" style="grid-column: 1 / -1; font-weight: 600; margin-bottom: 8px;">
                                     <span class="timing-dot timing-dot-loading"></span>
-                                    检索: ${timing.retrieval}ms (${percentages.retrieval}%)
+                                    检索: ${retrievalTotal}ms (${percentages.retrieval}%)
                                 </div>
+                                ${retrieval.denseSearch ? `
+                                <div class="timing-item" style="padding-left: 20px;">
+                                    <span style="color: #3498db;">▸</span>
+                                    相似度检索(Dense): ${retrieval.denseSearch}ms
+                                </div>` : ''}
+                                ${retrieval.sparseSearch ? `
+                                <div class="timing-item" style="padding-left: 20px;">
+                                    <span style="color: #3498db;">▸</span>
+                                    关键字检索(Sparse): ${retrieval.sparseSearch}ms
+                                </div>` : ''}
+                                ${retrieval.rrfFusion ? `
+                                <div class="timing-item" style="padding-left: 20px;">
+                                    <span style="color: #3498db;">▸</span>
+                                    RRF融合: ${retrieval.rrfFusion}ms
+                                </div>` : ''}
+                                ${retrieval.reranker ? `
+                                <div class="timing-item" style="padding-left: 20px;">
+                                    <span style="color: #3498db;">▸</span>
+                                    Reranker精排: ${retrieval.reranker}ms
+                                </div>` : ''}
                                 <div class="timing-item">
                                     <span class="timing-dot timing-dot-splitting"></span>
                                     Prompt构建: ${timing.promptBuild}ms (${percentages.promptBuild}%)
@@ -1107,12 +1131,24 @@
 
                 document.getElementById('query-answer').innerHTML = answerHtml;
 
+                // 显示检索到的文档
                 if (result.sources && result.sources.length > 0) {
-                    document.getElementById('query-sources').innerHTML = result.sources.map((src, i) => `
-                        <div style="padding: 12px; margin-top: 8px; background: #f8f9fa; border-radius: 4px;">
-                            <strong>[${i + 1}]</strong> ${src.source || src}
-                        </div>
-                    `).join('');
+                    document.getElementById('query-sources').innerHTML = `
+                        <div style="margin-bottom: 12px; font-weight: 600;">检索到 ${result.sources.length} 个相关文档：</div>
+                        ${result.sources.map((src, i) => `
+                            <div style="padding: 12px; margin-top: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <strong style="color: #2c3e50;">[${i + 1}] ${src.id || 'Document'}</strong>
+                                    ${src.metadata && src.metadata.source ? `<span style="font-size: 12px; color: #666;">来源: ${src.metadata.source}</span>` : ''}
+                                </div>
+                                <div style="color: #555; line-height: 1.5; max-height: 120px; overflow: hidden; text-overflow: ellipsis;">
+                                    ${escapeHtml(src.text || '').substring(0, 300)}${src.text && src.text.length > 300 ? '...' : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    document.getElementById('query-sources').innerHTML = '<div style="color: #999;">未检索到相关文档</div>';
                 }
 
             } catch (error) {

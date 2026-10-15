@@ -1,6 +1,7 @@
 package com.ragserver.controller;
 
 import com.ragserver.ingestion.IngestionPipeline;
+import com.ragserver.retrieval.model.Document;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
@@ -361,19 +362,39 @@ public class RagController {
         try {
             RagService.QueryResult queryResult = ragService.query(question, topK, enableRerank);
 
-            // 构建耗时统计信息
+            // 构建详细的检索耗时统计
+            Map<String, Object> retrievalTiming = new HashMap<>();
+            retrievalTiming.put("denseSearch", queryResult.getDenseSearchDurationMs());
+            retrievalTiming.put("sparseSearch", queryResult.getSparseSearchDurationMs());
+            retrievalTiming.put("rrfFusion", queryResult.getRrfFusionDurationMs());
+            retrievalTiming.put("reranker", queryResult.getRerankerDurationMs());
+            retrievalTiming.put("total", queryResult.getRetrievalDurationMs());
+
+            // 构建总体耗时统计
             Map<String, Object> timing = new HashMap<>();
-            timing.put("retrieval", queryResult.getRetrievalDurationMs());
+            timing.put("retrieval", retrievalTiming);
             timing.put("promptBuild", queryResult.getPromptBuildDurationMs());
             timing.put("llmGeneration", queryResult.getLlmGenerationDurationMs());
             timing.put("citationBuild", queryResult.getCitationBuildDurationMs());
             timing.put("total", queryResult.getTotalDurationMs());
 
+            // 构建检索文档信息
+            List<Map<String, Object>> sources = new ArrayList<>();
+            if (queryResult.getRetrievedDocuments() != null) {
+                for (Document doc : queryResult.getRetrievedDocuments()) {
+                    Map<String, Object> source = new HashMap<>();
+                    source.put("id", doc.getId());
+                    source.put("text", doc.getText());
+                    source.put("metadata", doc.getMetadata());
+                    sources.add(source);
+                }
+            }
+
             Map<String, Object> result = new HashMap<>();
             result.put("question", question);
             result.put("answer", queryResult.getAnswer());
             result.put("timing", timing);
-            result.put("sources", List.of()); // TODO: 从RagService获取sources
+            result.put("sources", sources);
 
             return ResponseEntity.ok(result);
 

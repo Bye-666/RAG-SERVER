@@ -113,10 +113,20 @@ public class RagService {
         try {
             // 1. 检索相关文档
             long stepStart = System.currentTimeMillis();
-            List<Document> context = retriever.retrieve(question, topK, enableRerank);
-            result.setRetrievalDurationMs(System.currentTimeMillis() - stepStart);
+            HybridRetriever.RetrievalResult retrievalResult = retriever.retrieve(question, topK, enableRerank);
+            List<Document> context = retrievalResult.getDocuments();
+            long retrievalDuration = System.currentTimeMillis() - stepStart;
+
+            // 保存详细的检索耗时
+            result.setDenseSearchDurationMs(retrievalResult.getDenseSearchDurationMs());
+            result.setSparseSearchDurationMs(retrievalResult.getSparseSearchDurationMs());
+            result.setRrfFusionDurationMs(retrievalResult.getRrfFusionDurationMs());
+            result.setRerankerDurationMs(retrievalResult.getRerankerDurationMs());
+            result.setRetrievalDurationMs(retrievalDuration);
+
             retrievedDocsCount = context.size();
-            log.debug("检索完成：获取{}个文档，耗时{}ms", context.size(), result.getRetrievalDurationMs());
+            result.setRetrievedDocuments(context);
+            log.debug("检索完成：获取{}个文档，耗时{}ms", context.size(), retrievalDuration);
 
             // 检查是否有检索结果
             if (context.isEmpty()) {
@@ -194,7 +204,8 @@ public class RagService {
         log.info("仅检索模式：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
         try {
-            List<Document> documents = retriever.retrieve(question, topK, enableRerank);
+            HybridRetriever.RetrievalResult result = retriever.retrieve(question, topK, enableRerank);
+            List<Document> documents = result.getDocuments();
             log.info("检索完成：获取{}个文档", documents.size());
             return documents;
 
@@ -219,7 +230,8 @@ public class RagService {
 
         try {
             // 1. 检索
-            List<Document> context = retriever.retrieve(question, topK, enableRerank);
+            HybridRetriever.RetrievalResult result = retriever.retrieve(question, topK, enableRerank);
+            List<Document> context = result.getDocuments();
 
             // 2. 构建Prompt
             String prompt = promptService.buildRagPrompt(question, context);
@@ -284,7 +296,8 @@ public class RagService {
         return Flux.defer(() -> {
             try {
                 // 1. 检索相关文档
-                List<Document> context = retriever.retrieve(question, topK, enableRerank);
+                HybridRetriever.RetrievalResult result = retriever.retrieve(question, topK, enableRerank);
+                List<Document> context = result.getDocuments();
                 log.debug("检索完成：获取{}个文档", context.size());
 
                 // 检查是否有检索结果
@@ -352,7 +365,16 @@ public class RagService {
      */
     public static class QueryResult {
         private String answer;
-        private long retrievalDurationMs;      // 检索耗时
+        private List<Document> retrievedDocuments;  // 检索到的文档
+
+        // 检索阶段详细耗时
+        private long denseSearchDurationMs;    // Dense向量检索耗时
+        private long sparseSearchDurationMs;   // Sparse关键字检索耗时
+        private long rrfFusionDurationMs;      // RRF融合耗时
+        private long rerankerDurationMs;       // Reranker精排耗时
+        private long retrievalDurationMs;      // 检索总耗时
+
+        // 其他阶段耗时
         private long promptBuildDurationMs;    // Prompt构建耗时
         private long llmGenerationDurationMs;  // LLM生成耗时
         private long citationBuildDurationMs;  // 引用构建耗时
@@ -361,6 +383,21 @@ public class RagService {
         // Getters and Setters
         public String getAnswer() { return answer; }
         public void setAnswer(String answer) { this.answer = answer; }
+
+        public List<Document> getRetrievedDocuments() { return retrievedDocuments; }
+        public void setRetrievedDocuments(List<Document> retrievedDocuments) { this.retrievedDocuments = retrievedDocuments; }
+
+        public long getDenseSearchDurationMs() { return denseSearchDurationMs; }
+        public void setDenseSearchDurationMs(long denseSearchDurationMs) { this.denseSearchDurationMs = denseSearchDurationMs; }
+
+        public long getSparseSearchDurationMs() { return sparseSearchDurationMs; }
+        public void setSparseSearchDurationMs(long sparseSearchDurationMs) { this.sparseSearchDurationMs = sparseSearchDurationMs; }
+
+        public long getRrfFusionDurationMs() { return rrfFusionDurationMs; }
+        public void setRrfFusionDurationMs(long rrfFusionDurationMs) { this.rrfFusionDurationMs = rrfFusionDurationMs; }
+
+        public long getRerankerDurationMs() { return rerankerDurationMs; }
+        public void setRerankerDurationMs(long rerankerDurationMs) { this.rerankerDurationMs = rerankerDurationMs; }
 
         public long getRetrievalDurationMs() { return retrievalDurationMs; }
         public void setRetrievalDurationMs(long retrievalDurationMs) { this.retrievalDurationMs = retrievalDurationMs; }

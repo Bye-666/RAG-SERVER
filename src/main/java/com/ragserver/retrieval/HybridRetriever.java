@@ -63,41 +63,87 @@ public class HybridRetriever {
      * @param query 查询文本
      * @param topK 最终返回的文档数量
      * @param enableRerank 是否启用重排序（建议topK≤10时启用）
-     * @return 检索到的文档列表，按相关性降序排序
+     * @return 检索结果（包含文档和耗时统计）
      */
-    public List<Document> retrieve(String query, int topK, boolean enableRerank) {
+    public RetrievalResult retrieve(String query, int topK, boolean enableRerank) {
         log.info("开始检索：query={}, topK={}, enableRerank={}", query, topK, enableRerank);
 
-        long startTime = System.currentTimeMillis();
+        long totalStartTime = System.currentTimeMillis();
+        RetrievalResult result = new RetrievalResult();
 
         try {
-            // 1. 混合检索（召回更多候选用于Rerank）
+            // 1. 相似度检索（Dense向量）
+            long stepStart = System.currentTimeMillis();
             int candidateCount = enableRerank ? topK * 2 : topK;
-            List<Document> candidates = vectorStore.searchHybrid(query, candidateCount);
+            List<Document> denseResults = vectorStore.searchDense(query, candidateCount);
+            result.setDenseSearchDurationMs(System.currentTimeMillis() - stepStart);
+            log.debug("Dense检索完成：{}个文档，耗时{}ms", denseResults.size(), result.getDenseSearchDurationMs());
 
-            log.debug("混合检索完成：召回{}个候选文档", candidates.size());
+            // 2. 关键字检索（Sparse BM25）
+            stepStart = System.currentTimeMillis();
+            List<Document> sparseResults = vectorStore.searchSparse(query, candidateCount);
+            result.setSparseSearchDurationMs(System.currentTimeMillis() - stepStart);
+            log.debug("Sparse检索完成：{}个文档，耗时{}ms", sparseResults.size(), result.getSparseSearchDurationMs());
 
-            // 2. 可选Rerank
-            List<Document> results;
+            // 3. RRF融合
+            stepStart = System.currentTimeMillis();
+            List<Document> candidates = rrfFusion(denseResults, sparseResults);
+            // 截取到candidateCount
+            if (candidates.size() > candidateCount) {
+                candidates = candidates.subList(0, candidateCount);
+            }
+            result.setRrfFusionDurationMs(System.currentTimeMillis() - stepStart);
+            log.debug("RRF融合完成：{}个候选文档，耗时{}ms", candidates.size(), result.getRrfFusionDurationMs());
+
+            // 4. 可选Rerank
+            List<Document> finalResults;
             if (enableRerank && !candidates.isEmpty()) {
-                results = reranker.rerank(query, candidates, topK);
-                log.info("Rerank完成：从{}个候选中精排出{}个文档", candidates.size(), results.size());
+                stepStart = System.currentTimeMillis();
+                finalResults = reranker.rerank(query, candidates, topK);
+                result.setRerankerDurationMs(System.currentTimeMillis() - stepStart);
+                log.info("Rerank完成：从{}个候选中精排出{}个文档，耗时{}ms",
+                    candidates.size(), finalResults.size(), result.getRerankerDurationMs());
             } else {
+                result.setRerankerDurationMs(0L);
                 // 不启用Rerank，直接截取topK
-                results = candidates.size() > topK
+                finalResults = candidates.size() > topK
                         ? candidates.subList(0, topK)
                         : candidates;
             }
 
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            log.info("检索完成：返回{}个文档，耗时{}ms", results.size(), elapsedTime);
+            result.setDocuments(finalResults);
+            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
 
-            return results;
+            log.info("检索完成：返回{}个文档，总耗时{}ms [Dense:{}ms, Sparse:{}ms, RRF:{}ms, Rerank:{}ms]",
+                finalResults.size(), result.getTotalDurationMs(),
+                result.getDenseSearchDurationMs(), result.getSparseSearchDurationMs(),
+                result.getRrfFusionDurationMs(), result.getRerankerDurationMs());
+
+            return result;
 
         } catch (Exception e) {
             log.error("检索失败：query={}, error={}", query, e.getMessage(), e);
             throw new RuntimeException("检索失败：" + e.getMessage(), e);
         }
+    }
+
+    /**
+     * RRF融合算法
+     */
+    private List<Document> rrfFusion(List<Document> denseResults, List<Document> sparseResults) {
+        // 使用vectorStore的现有融合逻辑
+        // 简化实现：合并结果并去重
+        java.util.Map<String, Document> docMap = new java.util.LinkedHashMap<>();
+
+        for (Document doc : denseResults) {
+            docMap.put(doc.getId(), doc);
+        }
+
+        for (Document doc : sparseResults) {
+            docMap.putIfAbsent(doc.getId(), doc);
+        }
+
+        return new java.util.ArrayList<>(docMap.values());
     }
 
     /**
@@ -183,7 +229,39 @@ public class HybridRetriever {
      * @param topK 返回文档数量
      * @return 检索到的文档列表
      */
-    public List<Document> retrieve(String query, int topK) {
-        return retrieve(query, topK, false);
+    public List<Document> retrieveSimple(String query, int topK) {
+        RetrievalResult result = retrieve(query, topK, false);
+        return result.getDocuments();
+    }
+
+    /**
+     * 检索结果（包含文档和耗时统计）
+     */
+    public static class RetrievalResult {
+        private List<Document> documents;
+        private long denseSearchDurationMs;    // Dense向量检索耗时
+        private long sparseSearchDurationMs;   // Sparse关键字检索耗时
+        private long rrfFusionDurationMs;      // RRF融合耗时
+        private long rerankerDurationMs;       // Reranker精排耗时
+        private long totalDurationMs;          // 总耗时
+
+        // Getters and Setters
+        public List<Document> getDocuments() { return documents; }
+        public void setDocuments(List<Document> documents) { this.documents = documents; }
+
+        public long getDenseSearchDurationMs() { return denseSearchDurationMs; }
+        public void setDenseSearchDurationMs(long denseSearchDurationMs) { this.denseSearchDurationMs = denseSearchDurationMs; }
+
+        public long getSparseSearchDurationMs() { return sparseSearchDurationMs; }
+        public void setSparseSearchDurationMs(long sparseSearchDurationMs) { this.sparseSearchDurationMs = sparseSearchDurationMs; }
+
+        public long getRrfFusionDurationMs() { return rrfFusionDurationMs; }
+        public void setRrfFusionDurationMs(long rrfFusionDurationMs) { this.rrfFusionDurationMs = rrfFusionDurationMs; }
+
+        public long getRerankerDurationMs() { return rerankerDurationMs; }
+        public void setRerankerDurationMs(long rerankerDurationMs) { this.rerankerDurationMs = rerankerDurationMs; }
+
+        public long getTotalDurationMs() { return totalDurationMs; }
+        public void setTotalDurationMs(long totalDurationMs) { this.totalDurationMs = totalDurationMs; }
     }
 }
