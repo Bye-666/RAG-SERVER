@@ -443,6 +443,78 @@
                 max-height: 90vh;
             }
         }
+
+        /* 耗时统计样式 */
+        .timing-stats {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.6);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .timing-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #155724;
+        }
+
+        .timing-bar-container {
+            height: 24px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            margin-bottom: 8px;
+        }
+
+        .timing-bar {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .timing-bar:hover {
+            filter: brightness(1.1);
+        }
+
+        .timing-bar-loading { background: #3498db; }
+        .timing-bar-splitting { background: #9b59b6; }
+        .timing-bar-refining { background: #1abc9c; }
+        .timing-bar-enriching { background: #f39c12; }
+        .timing-bar-embedding { background: #e74c3c; }
+        .timing-bar-storage { background: #27ae60; }
+
+        .timing-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .timing-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .timing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .timing-dot-loading { background: #3498db; }
+        .timing-dot-splitting { background: #9b59b6; }
+        .timing-dot-refining { background: #1abc9c; }
+        .timing-dot-enriching { background: #f39c12; }
+        .timing-dot-embedding { background: #e74c3c; }
+        .timing-dot-storage { background: #27ae60; }
     </style>
 </head>
 <body>
@@ -878,9 +950,69 @@
 
                 const result = await response.json();
 
+                // 构建耗时统计显示
+                let timingHtml = '';
+                if (result.timing) {
+                    const timing = result.timing;
+                    const totalTime = timing.total || 0;
+
+                    // 计算各阶段百分比
+                    const percentages = {
+                        loading: ((timing.loading / totalTime) * 100).toFixed(1),
+                        splitting: ((timing.splitting / totalTime) * 100).toFixed(1),
+                        refining: ((timing.refining / totalTime) * 100).toFixed(1),
+                        enriching: ((timing.enriching / totalTime) * 100).toFixed(1),
+                        embedding: ((timing.embedding / totalTime) * 100).toFixed(1),
+                        storage: ((timing.storage / totalTime) * 100).toFixed(1)
+                    };
+
+                    timingHtml = `
+                        <div class="timing-stats">
+                            <div class="timing-header">⏱️ 耗时统计：总耗时 ${totalTime}ms (${(totalTime/1000).toFixed(2)}秒)</div>
+
+                            <div class="timing-bar-container">
+                                ${timing.loading > 0 ? `<div class="timing-bar timing-bar-loading" style="width: ${percentages.loading}%;" title="文档加载: ${timing.loading}ms">${percentages.loading >= 5 ? percentages.loading + '%' : ''}</div>` : ''}
+                                ${timing.splitting > 0 ? `<div class="timing-bar timing-bar-splitting" style="width: ${percentages.splitting}%;" title="数据切分: ${timing.splitting}ms">${percentages.splitting >= 5 ? percentages.splitting + '%' : ''}</div>` : ''}
+                                ${timing.refining > 0 ? `<div class="timing-bar timing-bar-refining" style="width: ${percentages.refining}%;" title="降噪处理: ${timing.refining}ms">${percentages.refining >= 5 ? percentages.refining + '%' : ''}</div>` : ''}
+                                ${timing.enriching > 0 ? `<div class="timing-bar timing-bar-enriching" style="width: ${percentages.enriching}%;" title="元数据增强: ${timing.enriching}ms">${percentages.enriching >= 5 ? percentages.enriching + '%' : ''}</div>` : ''}
+                                ${timing.embedding > 0 ? `<div class="timing-bar timing-bar-embedding" style="width: ${percentages.embedding}%;" title="向量化: ${timing.embedding}ms">${percentages.embedding >= 5 ? percentages.embedding + '%' : ''}</div>` : ''}
+                                ${timing.storage > 0 ? `<div class="timing-bar timing-bar-storage" style="width: ${percentages.storage}%;" title="存储入库: ${timing.storage}ms">${percentages.storage >= 5 ? percentages.storage + '%' : ''}</div>` : ''}
+                            </div>
+
+                            <div class="timing-details">
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-loading"></span>
+                                    文档加载: ${timing.loading}ms (${percentages.loading}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-splitting"></span>
+                                    数据切分: ${timing.splitting}ms (${percentages.splitting}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-refining"></span>
+                                    降噪处理: ${timing.refining}ms (${percentages.refining}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-enriching"></span>
+                                    元数据增强: ${timing.enriching}ms (${percentages.enriching}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-embedding"></span>
+                                    向量化: ${timing.embedding}ms (${percentages.embedding}%)
+                                </div>
+                                <div class="timing-item">
+                                    <span class="timing-dot timing-dot-storage"></span>
+                                    存储入库: ${timing.storage}ms (${percentages.storage}%)
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 document.getElementById('upload-results').innerHTML += `
                     <div style="padding: 10px; margin-top: 10px; background: #d4edda; border-radius: 4px; color: #155724;">
                         ✓ ${file.name}: 成功摄取 ${result.chunkCount || 0} 个chunks
+                        ${timingHtml}
                     </div>
                 `;
 

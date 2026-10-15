@@ -125,13 +125,25 @@ public class RagController {
                 // 清除统计数据和文档列表缓存
                 clearStatsCache();
 
-                return ResponseEntity.ok(Map.of(
-                        "message", "文档摄取成功",
-                        "filename", file.getOriginalFilename(),
-                        "chunkCount", ingestionResult.getChunksProcessed(),
-                        "collection", collection != null ? collection : "default",
-                        "status", "SUCCESS"
-                ));
+                // 构建详细的耗时统计信息
+                Map<String, Object> timingDetails = new HashMap<>();
+                timingDetails.put("loading", ingestionResult.getLoadingDurationMs());
+                timingDetails.put("splitting", ingestionResult.getSplittingDurationMs());
+                timingDetails.put("refining", ingestionResult.getRefiningDurationMs());
+                timingDetails.put("enriching", ingestionResult.getEnrichingDurationMs());
+                timingDetails.put("embedding", ingestionResult.getEmbeddingDurationMs());
+                timingDetails.put("storage", ingestionResult.getStorageDurationMs());
+                timingDetails.put("total", ingestionResult.getDurationMs());
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "文档摄取成功");
+                response.put("filename", file.getOriginalFilename());
+                response.put("chunkCount", ingestionResult.getChunksProcessed());
+                response.put("collection", collection != null ? collection : "default");
+                response.put("status", "SUCCESS");
+                response.put("timing", timingDetails);
+
+                return ResponseEntity.ok(response);
             } else {
                 String errorMsg = result.getFailures().isEmpty() ?
                     "未知错误" : result.getFailures().get(0).getErrorMessage();

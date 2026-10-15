@@ -48,7 +48,7 @@ class DocumentIngestionIntegrationTest {
 
             // When: 摄取文档
             try {
-                IngestionPipeline.IngestionResult result = ingestionService.ingestDocument(testPdf);
+                IngestionService.BatchIngestionResult result = ingestionService.ingestDocuments(List.of(testPdf));
 
                 // Then: 验证历史记录已保存
                 List<IngestionHistory> histories = historyRepository.findAll();
@@ -86,7 +86,7 @@ class DocumentIngestionIntegrationTest {
 
             // When: 尝试摄取（应该失败）
             try {
-                ingestionService.ingestDocument(invalidFile);
+                ingestionService.ingestDocuments(List.of(invalidFile));
             } catch (Exception e) {
                 // 预期会失败
             }

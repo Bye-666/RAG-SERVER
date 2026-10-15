@@ -117,14 +117,16 @@ public class IngestionPipeline {
      */
     public IngestionResult ingest(Path pdfPath) throws IngestionException {
         log.info("开始摄取文档: {}", pdfPath);
-        long startTime = System.currentTimeMillis();
+        long totalStartTime = System.currentTimeMillis();
 
         IngestionResult result = new IngestionResult(pdfPath.toString());
 
         try {
             // 步骤1: 加载PDF
             log.debug("步骤1: 加载PDF文件");
+            long stepStart = System.currentTimeMillis();
             List<Document> rawDocuments = loadPdf(pdfPath);
+            result.setLoadingDurationMs(System.currentTimeMillis() - stepStart);
 
             // 合并为单个文档（如果PDF加载返回多个页面）
             Document rawDocument = mergeDocuments(rawDocuments);
@@ -132,39 +134,52 @@ public class IngestionPipeline {
 
             // 步骤2: 分块
             log.debug("步骤2: 递归分块");
+            stepStart = System.currentTimeMillis();
             List<Document> chunks = new ArrayList<>(splitDocument(rawDocument));
+            result.setSplittingDurationMs(System.currentTimeMillis() - stepStart);
             result.setChunksCreated(chunks.size());
 
             // 步骤3: 清理
             log.debug("步骤3: 清理噪声");
+            stepStart = System.currentTimeMillis();
             chunks = refineChunks(chunks);
+            result.setRefiningDurationMs(System.currentTimeMillis() - stepStart);
 
             // 步骤4: 增强元数据
             log.debug("步骤4: 增强元数据");
+            stepStart = System.currentTimeMillis();
             chunks = enrichMetadata(chunks);
+            result.setEnrichingDurationMs(System.currentTimeMillis() - stepStart);
 
             // 步骤5: 生成Embedding
             log.debug("步骤5: 批量生成Embedding");
+            stepStart = System.currentTimeMillis();
             chunks = generateEmbeddings(chunks);
+            result.setEmbeddingDurationMs(System.currentTimeMillis() - stepStart);
             result.setChunksProcessed(chunks.size());
 
             // 步骤6: 存入向量数据库
             log.debug("步骤6: 存入Milvus");
+            stepStart = System.currentTimeMillis();
             storeToVectorDb(chunks);
+            result.setStorageDurationMs(System.currentTimeMillis() - stepStart);
 
-            long duration = System.currentTimeMillis() - startTime;
+            long totalDuration = System.currentTimeMillis() - totalStartTime;
             result.setSuccess(true);
-            result.setDurationMs(duration);
+            result.setDurationMs(totalDuration);
 
-            log.info("摄取完成: {} -> {}个块，耗时{}ms",
-                pdfPath.getFileName(), chunks.size(), duration);
+            log.info("摄取完成: {} -> {}个块，总耗时{}ms [加载:{}ms, 切分:{}ms, 降噪:{}ms, 增强:{}ms, 向量化:{}ms, 存储:{}ms]",
+                pdfPath.getFileName(), chunks.size(), totalDuration,
+                result.getLoadingDurationMs(), result.getSplittingDurationMs(),
+                result.getRefiningDurationMs(), result.getEnrichingDurationMs(),
+                result.getEmbeddingDurationMs(), result.getStorageDurationMs());
 
             return result;
 
         } catch (Exception e) {
-            long duration = System.currentTimeMillis() - startTime;
+            long totalDuration = System.currentTimeMillis() - totalStartTime;
             result.setSuccess(false);
-            result.setDurationMs(duration);
+            result.setDurationMs(totalDuration);
             result.setErrorMessage(e.getMessage());
 
             log.error("摄取失败: {} - {}", pdfPath, e.getMessage(), e);
@@ -389,6 +404,14 @@ public class IngestionPipeline {
         private long durationMs;
         private String errorMessage;
 
+        // 各阶段耗时统计（毫秒）
+        private long loadingDurationMs;      // 文档加载
+        private long splittingDurationMs;    // 数据切分
+        private long refiningDurationMs;     // 降噪处理
+        private long enrichingDurationMs;    // 元数据增强
+        private long embeddingDurationMs;    // 向量化
+        private long storageDurationMs;      // 存储入库
+
         public IngestionResult(String sourcePath) {
             this.sourcePath = sourcePath;
         }
@@ -408,11 +431,26 @@ public class IngestionPipeline {
         public String getErrorMessage() { return errorMessage; }
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
 
+        // 各阶段耗时的 Getters and Setters
+        public long getLoadingDurationMs() { return loadingDurationMs; }
+        public void setLoadingDurationMs(long loadingDurationMs) { this.loadingDurationMs = loadingDurationMs; }
+        public long getSplittingDurationMs() { return splittingDurationMs; }
+        public void setSplittingDurationMs(long splittingDurationMs) { this.splittingDurationMs = splittingDurationMs; }
+        public long getRefiningDurationMs() { return refiningDurationMs; }
+        public void setRefiningDurationMs(long refiningDurationMs) { this.refiningDurationMs = refiningDurationMs; }
+        public long getEnrichingDurationMs() { return enrichingDurationMs; }
+        public void setEnrichingDurationMs(long enrichingDurationMs) { this.enrichingDurationMs = enrichingDurationMs; }
+        public long getEmbeddingDurationMs() { return embeddingDurationMs; }
+        public void setEmbeddingDurationMs(long embeddingDurationMs) { this.embeddingDurationMs = embeddingDurationMs; }
+        public long getStorageDurationMs() { return storageDurationMs; }
+        public void setStorageDurationMs(long storageDurationMs) { this.storageDurationMs = storageDurationMs; }
+
         @Override
         public String toString() {
             if (success) {
-                return String.format("IngestionResult{source='%s', chunks=%d, duration=%dms}",
-                    sourcePath, chunksProcessed, durationMs);
+                return String.format("IngestionResult{source='%s', chunks=%d, duration=%dms, stages=[loading=%dms, splitting=%dms, refining=%dms, enriching=%dms, embedding=%dms, storage=%dms]}",
+                    sourcePath, chunksProcessed, durationMs, loadingDurationMs, splittingDurationMs,
+                    refiningDurationMs, enrichingDurationMs, embeddingDurationMs, storageDurationMs);
             } else {
                 return String.format("IngestionResult{source='%s', failed='%s'}",
                     sourcePath, errorMessage);
