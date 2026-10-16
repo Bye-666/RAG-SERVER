@@ -267,6 +267,11 @@
             color: white;
         }
 
+        .badge-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
         .badge-error {
             background: #e74c3c;
             color: white;
@@ -527,6 +532,8 @@
                 <a href="#documents" class="nav-link" data-page="documents">📄 文档浏览器</a>
                 <a href="#ingestion" class="nav-link" data-page="ingestion">⬆️ 文档摄取</a>
                 <a href="#query" class="nav-link" data-page="query">🔍 查询测试</a>
+                <a href="#ingestion-history" class="nav-link" data-page="ingestion-history">📋 上传历史</a>
+                <a href="#query-history" class="nav-link" data-page="query-history">📜 查询历史</a>
             </nav>
         </div>
 
@@ -711,6 +718,130 @@
                     <div id="query-sources"></div>
                 </div>
             </div>
+
+            <!-- 文档上传历史页面 -->
+            <div id="ingestion-history-page" class="page">
+                <div class="page-header">
+                    <h1>文档上传历史</h1>
+                    <p>查看所有文档上传记录</p>
+                </div>
+
+                <!-- 统计卡片 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-label">上传总数</div>
+                        <div class="stat-value" id="ingestion-total">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">上传成功</div>
+                        <div class="stat-value" id="ingestion-success" style="color: #27ae60;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">上传失败</div>
+                        <div class="stat-value" id="ingestion-failed" style="color: #e74c3c;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">处理中</div>
+                        <div class="stat-value" id="ingestion-processing" style="color: #f39c12;">-</div>
+                    </div>
+                </div>
+
+                <!-- 文档上传历史表格 -->
+                <div class="card">
+                    <h2>上传记录</h2>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">文件名</th>
+                                    <th style="width: 15%;">Collection</th>
+                                    <th>状态</th>
+                                    <th>Chunk数</th>
+                                    <th>处理耗时</th>
+                                    <th>上传时间</th>
+                                    <th style="width: 20%;">错误信息</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ingestion-history-tbody">
+                                <tr>
+                                    <td colspan="7" class="empty-state">
+                                        <div>📋</div>
+                                        <p>暂无上传历史</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 12px; text-align: center;">
+                        <button class="btn" onclick="loadIngestionHistory(0)" style="margin-right: 8px;">🔄 刷新</button>
+                        <button class="btn" onclick="loadIngestionHistory(currentIngestionPage - 1)" id="ingestion-prev-btn" disabled>◀ 上一页</button>
+                        <span style="margin: 0 12px; font-weight: 500;" id="ingestion-page-info">第 1 页</span>
+                        <button class="btn" onclick="loadIngestionHistory(currentIngestionPage + 1)" id="ingestion-next-btn" disabled>下一页 ▶</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查询历史页面 -->
+            <div id="query-history-page" class="page">
+                <div class="page-header">
+                    <h1>查询历史</h1>
+                    <p>查看所有RAG查询记录</p>
+                </div>
+
+                <!-- 统计卡片 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-label">查询总数</div>
+                        <div class="stat-value" id="query-total">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">查询成功</div>
+                        <div class="stat-value" id="query-success" style="color: #27ae60;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">查询失败</div>
+                        <div class="stat-value" id="query-failed" style="color: #e74c3c;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">平均耗时</div>
+                        <div class="stat-value" id="query-avg-time">-</div>
+                    </div>
+                </div>
+
+                <!-- 查询历史表格 -->
+                <div class="card">
+                    <h2>查询记录</h2>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">问题</th>
+                                    <th style="width: 35%;">答案</th>
+                                    <th>状态</th>
+                                    <th>耗时</th>
+                                    <th>Top-K</th>
+                                    <th>Rerank</th>
+                                    <th>查询时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="query-history-tbody">
+                                <tr>
+                                    <td colspan="7" class="empty-state">
+                                        <div>📜</div>
+                                        <p>暂无查询历史</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 12px; text-align: center;">
+                        <button class="btn" onclick="loadQueryHistory(0)" style="margin-right: 8px;">🔄 刷新</button>
+                        <button class="btn" onclick="loadQueryHistory(currentQueryPage - 1)" id="query-prev-btn" disabled>◀ 上一页</button>
+                        <span style="margin: 0 12px; font-weight: 500;" id="query-page-info">第 1 页</span>
+                        <button class="btn" onclick="loadQueryHistory(currentQueryPage + 1)" id="query-next-btn" disabled>下一页 ▶</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -742,6 +873,14 @@
                     break;
                 case 'documents':
                     loadDocuments();
+                    break;
+                case 'ingestion-history':
+                    loadIngestionStats();
+                    loadIngestionHistory(0);
+                    break;
+                case 'query-history':
+                    loadQueryStats();
+                    loadQueryHistory(0);
                     break;
             }
         }
@@ -1347,6 +1486,149 @@
             formatted = formatted.replace(/&gt;\s*(.+?)<br>/g, '<blockquote style="border-left: 3px solid #3498db; padding-left: 12px; margin: 8px 0; color: #555;">$1</blockquote>');
 
             return formatted;
+        }
+
+        // 历史记录相关变量
+        let currentIngestionPage = 0;
+        let currentQueryPage = 0;
+
+        // 加载历史记录统计
+        // 加载文档上传统计
+        async function loadIngestionStats() {
+            try {
+                const response = await fetch('/api/ingestion-history/stats');
+                const data = await response.json();
+
+                document.getElementById('ingestion-total').textContent = data.total || 0;
+                document.getElementById('ingestion-success').textContent = data.success || 0;
+                document.getElementById('ingestion-failed').textContent = data.failed || 0;
+                document.getElementById('ingestion-processing').textContent = data.processing || 0;
+            } catch (error) {
+                console.error('加载文档上传统计失败', error);
+            }
+        }
+
+        // 加载查询统计
+        async function loadQueryStats() {
+            try {
+                const response = await fetch('/api/history/stats');
+                const data = await response.json();
+
+                document.getElementById('query-total').textContent = data.totalQueries || 0;
+                document.getElementById('query-success').textContent = data.successQueries || 0;
+                document.getElementById('query-failed').textContent = data.failedQueries || 0;
+
+                // 计算平均耗时
+                if (data.averageResponseTime) {
+                    document.getElementById('query-avg-time').textContent = Math.round(data.averageResponseTime) + 'ms';
+                } else {
+                    document.getElementById('query-avg-time').textContent = '-';
+                }
+            } catch (error) {
+                console.error('加载查询统计失败', error);
+            }
+        }
+
+        // 加载文档上传历史
+        async function loadIngestionHistory(page) {
+            try {
+                const response = await fetch(`/api/ingestion-history?page=${page}&size=10`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // 检查是否有错误
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // 检查数据结构
+                if (!data.content) {
+                    console.error('API返回数据:', data);
+                    throw new Error('API返回数据格式错误：缺少content字段');
+                }
+
+                currentIngestionPage = data.currentPage || 0;
+
+                const tbody = document.getElementById('ingestion-history-tbody');
+                if (data.content.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div>📋</div><p>暂无上传历史</p></td></tr>';
+                } else {
+                    tbody.innerHTML = data.content.map(item => `
+                        <tr>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.filePath || '-')}">${escapeHtml(item.filePath ? item.filePath.split(/[/\\]/).pop() : '-')}</td>
+                            <td>${escapeHtml(item.collectionName || 'default')}</td>
+                            <td><span class="badge badge-${item.status === 'SUCCESS' ? 'success' : item.status === 'FAILED' ? 'danger' : 'warning'}">${item.status}</span></td>
+                            <td>${item.chunkCount || 0}</td>
+                            <td>-</td>
+                            <td>${item.processedAt ? new Date(item.processedAt).toLocaleString('zh-CN') : '-'}</td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.errorMsg || '')}">${escapeHtml(item.errorMsg || '-')}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 更新分页按钮
+                document.getElementById('ingestion-prev-btn').disabled = data.currentPage === 0;
+                document.getElementById('ingestion-next-btn').disabled = data.currentPage >= data.totalPages - 1 || data.totalPages === 0;
+                document.getElementById('ingestion-page-info').textContent = `第 ${data.currentPage + 1} / ${data.totalPages || 1} 页 (共 ${data.totalElements || 0} 条)`;
+            } catch (error) {
+                console.error('加载文档上传历史失败', error);
+                document.getElementById('ingestion-history-tbody').innerHTML = '<tr><td colspan="7" class="empty-state"><div>❌</div><p>加载失败: ' + escapeHtml(error.message) + '</p></td></tr>';
+            }
+        }
+
+        // 加载查询历史
+        async function loadQueryHistory(page) {
+            try {
+                const response = await fetch(`/api/history/page?page=${page}&size=10`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // 检查是否有错误
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // 检查数据结构
+                if (!data.content) {
+                    console.error('API返回数据:', data);
+                    throw new Error('API返回数据格式错误：缺少content字段');
+                }
+
+                currentQueryPage = data.currentPage || 0;
+
+                const tbody = document.getElementById('query-history-tbody');
+                if (data.content.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div>📜</div><p>暂无查询历史</p></td></tr>';
+                } else {
+                    tbody.innerHTML = data.content.map(item => `
+                        <tr>
+                            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.question)}">${escapeHtml(item.question || '-')}</td>
+                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.answer || '')}">${escapeHtml(item.answer ? (item.answer.substring(0, 80) + (item.answer.length > 80 ? '...' : '')) : '-')}</td>
+                            <td><span class="badge badge-${item.status === 'SUCCESS' ? 'success' : 'danger'}">${item.status}</span></td>
+                            <td>${item.responseTimeMs ? (item.responseTimeMs / 1000).toFixed(2) + 's' : '-'}</td>
+                            <td>${item.topK || '-'}</td>
+                            <td>${item.enableRerank ? '✓' : '✗'}</td>
+                            <td style="white-space: nowrap;">${new Date(item.createdAt).toLocaleString('zh-CN')}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 更新分页按钮
+                document.getElementById('query-prev-btn').disabled = data.currentPage === 0;
+                document.getElementById('query-next-btn').disabled = data.currentPage >= data.totalPages - 1 || data.totalPages === 0;
+                document.getElementById('query-page-info').textContent = `第 ${data.currentPage + 1} / ${data.totalPages || 1} 页 (共 ${data.totalElements || 0} 条)`;
+            } catch (error) {
+                console.error('加载查询历史失败', error);
+                document.getElementById('query-history-tbody').innerHTML = '<tr><td colspan="7" class="empty-state"><div>❌</div><p>加载失败: ' + escapeHtml(error.message) + '</p></td></tr>';
+            }
         }
 
         // 初始加载

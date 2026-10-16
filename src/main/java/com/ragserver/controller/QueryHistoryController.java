@@ -3,6 +3,10 @@ package com.ragserver.controller;
 import com.ragserver.entity.QueryHistory;
 import com.ragserver.repository.QueryHistoryRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -89,6 +93,56 @@ public class QueryHistoryController {
             log.error("获取查询历史失败", e);
             return ResponseEntity.internalServerError()
                 .body(Map.of("error", "获取查询历史失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 分页获取查询历史
+     *
+     * <h3>请求示例</h3>
+     * <pre>
+     * GET /api/history/page?page=0&size=10
+     * </pre>
+     *
+     * <h3>响应示例</h3>
+     * <pre>{@code
+     * {
+     *   "content": [...],
+     *   "totalElements": 50,
+     *   "totalPages": 5,
+     *   "currentPage": 0,
+     *   "pageSize": 10
+     * }
+     * }</pre>
+     *
+     * @param page 页码（从0开始）
+     * @param size 每页大小
+     * @return 分页的查询历史
+     */
+    @GetMapping("/page")
+    public ResponseEntity<Map<String, Object>> getHistoryPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        log.info("分页获取查询历史：page={}, size={}", page, size);
+
+        try {
+            Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+            Page<QueryHistory> historyPage = queryHistoryRepository.findAll(pageable);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", historyPage.getContent());
+            response.put("totalElements", historyPage.getTotalElements());
+            response.put("totalPages", historyPage.getTotalPages());
+            response.put("currentPage", historyPage.getNumber());
+            response.put("pageSize", historyPage.getSize());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("分页获取查询历史失败", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "获取查询历史失败：" + e.getMessage()));
         }
     }
 

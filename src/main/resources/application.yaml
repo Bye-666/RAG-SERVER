@@ -22,8 +22,9 @@ spring:
 
   # 激活的配置文件（默认为dev，可通过环境变量覆盖）
   # 启动时可指定：--spring.profiles.active=prod
-  profiles:
-    active: dev
+  # 注意：注释掉 profiles.active 以使用主配置数据库
+  # profiles:
+  #   active: dev
 
   # ========================================
   # Spring AI 配置
