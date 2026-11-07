@@ -1,0 +1,335 @@
+# RAG-SERVER 开发进度
+
+**最后更新**: 2026-11-07 23:55  
+**当前负责人**: 小拜无霸哥
+
+---
+
+## 📊 已经做了什么
+
+### 核心功能（已完成）
+
+#### 1. AI 集成
+- ✅ **DashScope Chat Client** - 对话生成（限流、重试机制）
+- ✅ **DashScope Embedding Client** - 文本向量化（batch 支持）
+- ✅ **DashScope Vision Client** - 图像理解
+
+#### 2. 向量检索
+- ✅ **Milvus 混合检索** - Dense + Sparse 双路检索
+- ✅ **BM25 Encoder** - 自实现稀疏向量编码
+- ✅ **RRF Fusion** - 倒数排名融合算法
+- ✅ **HybridRetriever** - 检索编排（支持 Rerank）
+
+#### 3. 文档摄取
+- ✅ **PdfLoader** - PDF 文档加载（PDFBox）
+- ✅ **RecursiveSplitter** - 递归文档切分
+- ✅ **BatchEmbedding** - 批量向量化
+- ✅ **IngestionPipeline** - 摄取流程编排
+- ✅ **去重机制** - SHA256 文件哈希去重
+
+#### 4. RAG 服务
+- ✅ **RagService** - 查询 + 生成编排
+- ✅ **流式输出** - SSE 实时流式响应
+- ✅ **耗时统计** - 各阶段性能监控
+
+#### 5. 数据管理
+- ✅ **IngestionHistory** - 文档上传历史
+- ✅ **QueryHistory** - 查询历史记录
+- ✅ **ImageIndex** - 图片索引管理
+- ✅ **独立管理页面** - 历史记录查询界面
+
+#### 6. 基础设施配置（刚完成）
+- ✅ **Docker Compose 完整配置**:
+  - Milvus 2.5.3（原生支持混合检索 + 内置 BM25）
+  - MySQL 8.0（关系型数据库）
+  - Redis 7.2（缓存服务）
+  - Etcd 3.5.12（Milvus 元数据）
+  - MinIO（Milvus 对象存储）
+  - Attu 2.4（Milvus 可视化管理）
+- ✅ **MySQL 初始化脚本** - 4张表的建表语句
+- ✅ **Redis 配置文件** - 持久化、LRU、512MB 限制
+- ✅ **所有服务启动成功**
+
+### 最近提交（Git）
+```
+6f9c83b docs: 添加项目进度文档
+672461f feat: 配置 Docker 开发环境
+57abb33 docs: 完善项目文档
+b791e03 feat: 添加文档上传历史和查询历史独立页面
+918549c feat: 完善查询流式输出功能
+```
+
+---
+
+## 🔧 正在做什么 / 刚完成了什么
+
+### 技术栈升级（刚完成）
+- 🔄 **数据库迁移**: H2 → MySQL 8.0
+- 🔄 **新增缓存**: Redis 7.2
+- 🔄 **Milvus 升级**: 2.x → 2.5.3（原生混合检索）
+
+### 未提交的修改
+- ⚠️ `application.yaml` 已从 H2 改为 MySQL 配置（**未提交**）
+
+### 配置缺失问题（待修复）
+- ❌ `pom.xml` 缺少 MySQL 驱动依赖
+- ❌ `pom.xml` 缺少 Redis 依赖
+- ❌ `pom.xml` 仍保留 H2 依赖（需移除）
+- ❌ 代码中未集成 Redis 缓存
+- ❌ Embedding API 调用未使用缓存（浪费 API 费用）
+
+---
+
+## 📋 下一步要做什么
+
+### 立即任务：基础设施适配（约 1 小时）
+
+#### 阶段 1：修改配置（15分钟）
+- [ ] **修改 pom.xml**:
+  - 添加 MySQL 驱动（`mysql-connector-j`）
+  - 添加 Redis 依赖（`spring-boot-starter-data-redis`）
+  - 添加连接池（`commons-pool2`）
+  - 移除 H2 依赖
+  - 移除 SQLite 依赖（如果不用）
+
+- [ ] **修改 application.yaml**:
+  - 确认 MySQL 配置正确
+  - 添加 Redis 配置（host、port、连接池）
+  - 修改 `hibernate.ddl-auto` 为 `update`（开发阶段自动建表）
+  - 添加 Spring Cache 配置
+
+- [ ] **创建 RedisConfig.java**:
+  - 配置 RedisTemplate（JSON 序列化）
+  - 配置 CacheManager（TTL、不缓存 null）
+  - 启用 `@EnableCaching`
+
+#### 阶段 2：添加缓存（10分钟）
+- [ ] **修改 DashScopeEmbeddingClient**:
+  - 给 `embed(String text)` 方法添加 `@Cacheable` 注解
+  - 缓存键：`embeddings::` + text
+  - TTL：1小时
+
+- [ ] **可选：查询结果缓存**:
+  - 给 `RagService.query()` 添加缓存（如果需要）
+
+#### 阶段 3：启动验证（20分钟）
+- [ ] 启动 Docker 服务：`docker-compose up -d`
+- [ ] 启动 Spring Boot 应用：`mvn spring-boot:run`
+- [ ] **验证 MySQL 连接**:
+  - 查看启动日志：`HikariPool-1 - Start completed`
+  - 检查表是否自动创建：4张表
+- [ ] **验证 Redis 连接**:
+  - 查看启动日志：`Lettuce connection created`
+  - 检查 Redis 键：`docker-compose exec redis redis-cli KEYS *`
+- [ ] **验证 Milvus 连接**:
+  - 查看 Collection 是否创建
+  - 访问 Attu：http://localhost:8000
+- [ ] **测试缓存**:
+  - 上传同一份文档两次
+  - 第二次应该更快（Embedding 缓存命中）
+  - 查看 Redis 中的缓存键
+
+#### 阶段 4：提交代码（15分钟）
+- [ ] 提交所有修改：
+  ```bash
+  git add pom.xml
+  git add src/main/resources/application.yaml
+  git add src/main/java/com/ragserver/config/RedisConfig.java
+  git add src/main/java/com/ragserver/ai/dashscope/DashScopeEmbeddingClient.java
+  git commit -m "feat: 集成 MySQL 和 Redis，添加 Embedding 缓存
+  
+  - 添加 MySQL 驱动和 Redis 依赖
+  - 移除 H2 数据库依赖
+  - 配置 Redis 缓存（JSON 序列化、1小时 TTL）
+  - Embedding API 调用添加缓存（节省 API 费用）
+  - Hibernate DDL 改为 update（开发阶段自动建表）"
+  ```
+- [ ] 更新 PROGRESS.md，移动任务到"已完成"
+
+---
+
+## 🎯 还有什么没做
+
+### 后续开发任务（按优先级）
+
+#### 优先级 P1：MCP 协议集成（阶段 F）
+**预计耗时**: 4-6 小时
+
+**要做的事**:
+- [ ] 添加 MCP SDK 依赖到 pom.xml
+- [ ] 实现 McpServer（stdio 模式）
+- [ ] 定义 RAG Tools:
+  - `rag_query` - 查询知识库
+  - `rag_ingest` - 上传文档
+  - `rag_list_docs` - 列出文档
+  - `rag_delete_doc` - 删除文档
+- [ ] 编写 MCP 集成测试
+- [ ] 更新文档（如何使用 MCP 调用）
+
+**验收标准**:
+- Claude Desktop 可以通过 MCP 调用 RAG 功能
+- 所有 Tools 正常工作
+- 错误处理完善
+
+---
+
+#### 优先级 P2：Dashboard 完善（阶段 H）
+**预计耗时**: 8-12 小时
+
+**要做的事**:
+- [ ] 文档管理界面:
+  - 上传文档（拖拽上传）
+  - 查看文档列表（分页、搜索）
+  - 删除文档（确认对话框）
+  - 查看文档详情（切块预览）
+- [ ] 查询测试界面:
+  - 查询输入框（支持多行）
+  - 流式输出显示
+  - 检索结果展示（高亮相关片段）
+  - 参数调整（top-k、是否 Rerank）
+- [ ] 统计数据可视化:
+  - 文档数量趋势图（Chart.js）
+  - 查询量统计
+  - 平均响应时间
+  - 缓存命中率
+- [ ] 系统监控面板:
+  - JVM 内存使用
+  - Milvus Collection 大小
+  - MySQL 连接池状态
+  - Redis 内存使用
+
+**验收标准**:
+- 所有界面美观、易用
+- 数据实时刷新
+- 移动端适配
+
+---
+
+#### 优先级 P3：评估与优化（阶段 I）
+**预计耗时**: 4-6 小时
+
+**要做的事**:
+- [ ] 检索质量评估:
+  - 准备测试数据集（问题 + 标准答案）
+  - 计算 Hit@5、MRR 指标
+  - 对比 Dense、Sparse、Hybrid 效果
+- [ ] 性能优化:
+  - 测试 Query P99 延迟
+  - 优化慢查询
+  - 调整 Embedding batch_size
+  - 调整 Milvus 索引参数
+- [ ] 缓存优化:
+  - 监控缓存命中率
+  - 调整 TTL 策略
+  - 识别热点数据
+
+**验收标准**:
+- Hit@5 ≥ 85%
+- Query P99 < 2s
+- 缓存命中率 ≥ 80%
+
+---
+
+#### 优先级 P4：生产环境准备
+**预计耗时**: 4-6 小时
+
+**要做的事**:
+- [ ] 集成 Flyway（数据库版本管理）
+- [ ] 将 `hibernate.ddl-auto` 改为 `validate`
+- [ ] 编写数据库迁移脚本
+- [ ] 配置日志聚合（ELK）
+- [ ] 配置监控告警（Prometheus + Grafana）
+- [ ] 编写部署文档
+- [ ] 压力测试
+
+---
+
+#### 可选优化：Milvus 2.5 原生 API
+**预计耗时**: 2-3 小时
+
+**要做的事**:
+- [ ] 研究 Milvus 2.5 的原生混合检索 API
+- [ ] 重构 `MilvusHybridStore` 使用原生 API
+- [ ] 对比性能（原生 vs 手动融合）
+- [ ] 如果性能提升明显，则替换
+
+**是否做**:
+- 当前手动实现已经工作良好
+- 建议在其他功能完成后再考虑
+
+---
+
+## 📝 技术决策记录
+
+### 决策 1：数据库选择
+- **从**: H2（内存/文件数据库）
+- **到**: MySQL 8.0（关系型数据库）
+- **原因**: 生产环境需要可靠的关系型数据库
+- **日期**: 2026-11-07
+
+### 决策 2：缓存方案
+- **选择**: Redis 7.2 + Spring Cache
+- **实现方式**: `@Cacheable` 注解
+- **TTL**: 1小时
+- **原因**: 节省 Embedding API 调用，提升性能
+- **日期**: 2026-11-07
+
+### 决策 3：Hibernate DDL 模式
+- **开发环境**: `ddl-auto: update`（自动建表）
+- **生产环境**: `ddl-auto: validate` + Flyway（后续）
+- **原因**: 开发阶段快速迭代，生产环境保护数据
+- **日期**: 2026-11-07
+
+### 决策 4：Milvus 混合检索实现
+- **选择**: 保持手动实现（Dense + Sparse 分别查询 + RRF 融合）
+- **不选**: Milvus 2.5 原生混合检索 API
+- **原因**: 当前实现稳定、代码清晰，后续可选优化
+- **日期**: 2026-11-07
+
+---
+
+## 🔗 相关文档
+
+- [CLAUDE.md](CLAUDE.md) - 项目规范和常用命令
+- [DEV_SPEC.md](DEV_SPEC.md) - 完整的 53 个开发任务
+- [README.md](README.md) - 项目概述和快速开始
+- [docker-compose.yml](docker-compose.yml) - Docker 服务编排
+- [config/mysql/init.sql](config/mysql/init.sql) - MySQL 建表脚本
+
+---
+
+## 💡 给下一个 Agent 的提示
+
+### 如果你是新 Agent，应该这样开始：
+
+1. **阅读本文件**，了解项目进度
+2. **查看"下一步要做什么"**，找到当前任务
+3. **检查 Git 状态**: `git status`
+4. **检查 Docker 状态**: `docker-compose ps`
+5. **从未完成的任务开始执行**
+
+### 常用命令
+
+```bash
+# Docker 管理
+docker-compose up -d          # 启动所有服务
+docker-compose ps             # 查看服务状态
+docker-compose logs -f milvus # 查看日志
+
+# 应用启动
+mvn spring-boot:run           # 启动应用
+
+# 数据库检查
+docker-compose exec mysql mysql -uraguser -pragpassword -e "USE rag_server; SHOW TABLES;"
+
+# Redis 检查
+docker-compose exec redis redis-cli KEYS "embeddings*"
+
+# Milvus 管理界面
+http://localhost:8000         # Attu 可视化管理
+```
+
+---
+
+**更新时间**: 2026-11-07 23:55  
+**下次更新**: 完成"基础设施适配"任务后
