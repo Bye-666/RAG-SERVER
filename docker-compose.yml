@@ -1,0 +1,214 @@
+# ========================================
+# RAG-SERVER Docker Compose 配置
+# ========================================
+#
+# 服务清单：
+# - Milvus 2.5（向量数据库，原生支持混合检索 + 内置 BM25）
+# - Etcd（Milvus 元数据存储）
+# - MinIO（Milvus 对象存储）
+# - MySQL 8.0（关系型数据库）
+# - Redis 7.2（缓存）
+# - Attu（Milvus 可视化管理界面）
+#
+# 使用方法：
+#   启动所有服务：docker-compose up -d
+#   启动核心服务：docker-compose up -d milvus mysql redis
+#   查看日志：docker-compose logs -f [service_name]
+#   停止服务：docker-compose down
+#   清理数据：docker-compose down -v
+#
+# 管理界面：
+#   - Milvus Attu: http://localhost:8000
+#   - MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
+#
+# 数据库连接：
+#   - MySQL: localhost:3306 (raguser/ragpassword)
+#   - Redis: localhost:6379
+#   - Milvus: localhost:19530
+
+# ========================================
+# 网络配置
+# ========================================
+networks:
+  rag-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ========================================
+# 数据卷配置
+# ========================================
+volumes:
+  milvus-etcd-data:
+    driver: local
+  milvus-minio-data:
+    driver: local
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# ========================================
+# 服务定义
+# ========================================
+services:
+
+  # ========================================
+  # Etcd - Milvus 元数据存储
+  # ========================================
+  etcd:
+    container_name: rag-milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.12
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    volumes:
+      - milvus-etcd-data:/etcd
+    command: etcd
+    networks:
+      rag-network:
+        ipv4_address: 172.20.0.2
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # MinIO - Milvus 对象存储
+  # ========================================
+  minio:
+    container_name: rag-milvus-minio
+    image: milvusdb/minio:RELEASE.2024-12-18T13-15-44Z
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - milvus-minio-data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API 端口
+      - "9001:9001"  # Console 端口
+    networks:
+      rag-network:
+        ipv4_address: 172.20.0.3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # Milvus Standalone - 向量数据库（2.5+ 原生支持混合检索）
+  # ========================================
+  milvus:
+    container_name: rag-milvus-standalone
+    image: milvusdb/milvus:v2.5.3
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: minioadmin
+      MINIO_SECRET_ACCESS_KEY: minioadmin
+    volumes:
+      - ./data/milvus:/var/lib/milvus
+    ports:
+      - "19530:19530"  # gRPC 端口
+      - "9091:9091"    # Metrics 端口（Prometheus）
+    depends_on:
+      - etcd
+      - minio
+    networks:
+      rag-network:
+        ipv4_address: 172.20.0.4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # Attu - Milvus 可视化管理界面
+  # ========================================
+  attu:
+    container_name: rag-milvus-attu
+    image: zilliz/attu:v2.4
+    environment:
+      MILVUS_URL: milvus:19530
+    ports:
+      - "8000:3000"
+    depends_on:
+      - milvus
+    networks:
+      rag-network:
+        ipv4_address: 172.20.0.5
+    restart: unless-stopped
+
+  # ========================================
+  # MySQL 8.0 - 关系型数据库
+  # ========================================
+  mysql:
+    container_name: rag-mysql
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: rag_server
+      MYSQL_USER: raguser
+      MYSQL_PASSWORD: ragpassword
+      # 性能优化
+      MYSQL_INITDB_SKIP_TZINFO: 1
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./config/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./config/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    networks:
+      rag-network:
+        ipv4_address: 172.20.0.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --max_connections=500
+      - --innodb_buffer_pool_size=1G
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # Redis 7.2 - 缓存
+  # ========================================
+  redis:
+    container_name: rag-redis
+    image: redis:7.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - redis-data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      rag-network:
+        ipv4_address: 172.20.0.7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+

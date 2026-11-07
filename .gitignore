@@ -91,3 +91,8 @@ SPRING_AI_GUIDE.md
 # ========================================
 application-local.yaml
 application-*.properties
+
+# 环境变量文件（敏感信息）
+.env
+.env.local
+.env.*.local
