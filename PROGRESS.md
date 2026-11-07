@@ -63,88 +63,37 @@ b791e03 feat: 添加文档上传历史和查询历史独立页面
 
 ## 🔧 正在做什么 / 刚完成了什么
 
-### 技术栈升级（刚完成）
-- 🔄 **数据库迁移**: H2 → MySQL 8.0
-- 🔄 **新增缓存**: Redis 7.2
-- 🔄 **Milvus 升级**: 2.x → 2.5.3（原生混合检索）
+### ✅ 刚完成：基础设施适配（2026-11-08 01:04）
 
-### 未提交的修改
-- ⚠️ `application.yaml` 已从 H2 改为 MySQL 配置（**未提交**）
+#### 技术栈升级
+- ✅ **数据库迁移**: H2 → MySQL 8.0
+- ✅ **新增缓存**: Redis 7.2（主缓存方案）
+- ✅ **Milvus 升级**: 确认使用 2.5.3（原生混合检索）
 
-### 配置缺失问题（待修复）
-- ❌ `pom.xml` 缺少 MySQL 驱动依赖
-- ❌ `pom.xml` 缺少 Redis 依赖
-- ❌ `pom.xml` 仍保留 H2 依赖（需移除）
-- ❌ 代码中未集成 Redis 缓存
-- ❌ Embedding API 调用未使用缓存（浪费 API 费用）
+#### 完成的配置
+- ✅ 添加 MySQL 驱动到 `pom.xml`
+- ✅ 添加 Redis 依赖（Spring Data Redis + Commons Pool2）
+- ✅ H2 改为仅测试使用
+- ✅ 移除 SQLite 依赖
+- ✅ 配置 MySQL 数据源（替代 H2）
+- ✅ 配置 Redis 缓存（连接池、Spring Cache）
+- ✅ 创建 `RedisConfig.java`（JSON 序列化、@Primary CacheManager）
+- ✅ `DashScopeEmbeddingClient` 添加 `@Cacheable` 缓存
+- ✅ Hibernate DDL 改为 `update`（开发环境自动建表）
+
+#### 启动验证通过
+- ✅ MySQL 连接成功（HikariPool-1 启动）
+- ✅ Redis 配置生效（作为主缓存）
+- ✅ Milvus Collection 自动创建（rag_knowledge_hub）
+- ✅ 应用启动成功（端口 8080）
+
+#### Git 提交
+- ✅ Commit: `bb85f25 feat: 集成 MySQL 和 Redis，添加 Embedding 缓存`
+- ✅ 6 个文件修改，612 行新增
 
 ---
 
 ## 📋 下一步要做什么
-
-### 立即任务：基础设施适配（约 1 小时）
-
-#### 阶段 1：修改配置（15分钟）
-- [ ] **修改 pom.xml**:
-  - 添加 MySQL 驱动（`mysql-connector-j`）
-  - 添加 Redis 依赖（`spring-boot-starter-data-redis`）
-  - 添加连接池（`commons-pool2`）
-  - 移除 H2 依赖
-  - 移除 SQLite 依赖（如果不用）
-
-- [ ] **修改 application.yaml**:
-  - 确认 MySQL 配置正确
-  - 添加 Redis 配置（host、port、连接池）
-  - 修改 `hibernate.ddl-auto` 为 `update`（开发阶段自动建表）
-  - 添加 Spring Cache 配置
-
-- [ ] **创建 RedisConfig.java**:
-  - 配置 RedisTemplate（JSON 序列化）
-  - 配置 CacheManager（TTL、不缓存 null）
-  - 启用 `@EnableCaching`
-
-#### 阶段 2：添加缓存（10分钟）
-- [ ] **修改 DashScopeEmbeddingClient**:
-  - 给 `embed(String text)` 方法添加 `@Cacheable` 注解
-  - 缓存键：`embeddings::` + text
-  - TTL：1小时
-
-- [ ] **可选：查询结果缓存**:
-  - 给 `RagService.query()` 添加缓存（如果需要）
-
-#### 阶段 3：启动验证（20分钟）
-- [ ] 启动 Docker 服务：`docker-compose up -d`
-- [ ] 启动 Spring Boot 应用：`mvn spring-boot:run`
-- [ ] **验证 MySQL 连接**:
-  - 查看启动日志：`HikariPool-1 - Start completed`
-  - 检查表是否自动创建：4张表
-- [ ] **验证 Redis 连接**:
-  - 查看启动日志：`Lettuce connection created`
-  - 检查 Redis 键：`docker-compose exec redis redis-cli KEYS *`
-- [ ] **验证 Milvus 连接**:
-  - 查看 Collection 是否创建
-  - 访问 Attu：http://localhost:8000
-- [ ] **测试缓存**:
-  - 上传同一份文档两次
-  - 第二次应该更快（Embedding 缓存命中）
-  - 查看 Redis 中的缓存键
-
-#### 阶段 4：提交代码（15分钟）
-- [ ] 提交所有修改：
-  ```bash
-  git add pom.xml
-  git add src/main/resources/application.yaml
-  git add src/main/java/com/ragserver/config/RedisConfig.java
-  git add src/main/java/com/ragserver/ai/dashscope/DashScopeEmbeddingClient.java
-  git commit -m "feat: 集成 MySQL 和 Redis，添加 Embedding 缓存
-  
-  - 添加 MySQL 驱动和 Redis 依赖
-  - 移除 H2 数据库依赖
-  - 配置 Redis 缓存（JSON 序列化、1小时 TTL）
-  - Embedding API 调用添加缓存（节省 API 费用）
-  - Hibernate DDL 改为 update（开发阶段自动建表）"
-  ```
-- [ ] 更新 PROGRESS.md，移动任务到"已完成"
 
 ---
 
