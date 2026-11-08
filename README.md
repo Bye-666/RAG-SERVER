@@ -40,8 +40,9 @@
 | **AI 抽象** | Spring AI | 1.0.0-M3 | ChatClient/EmbeddingClient 统一接口 |
 | **LLM** | 阿里云 DashScope | qwen3.7-flash | 对话生成、文本理解 |
 | **Embedding** | DashScope Embedding | qwen3.7-text-embedding | 文本向量化（1024 维） |
-| **向量库** | Milvus | 2.5+ | 混合检索（Dense + Sparse） |
-| **数据库** | H2 / SQLite | - | 元数据存储、摄取历史 |
+| **向量库** | Milvus | 2.5.3 | 混合检索（Dense + Sparse） |
+| **数据库** | MySQL | 8.0 | 元数据存储、摄取历史 |
+| **缓存** | Redis | 7.2 | Embedding 结果缓存 |
 | **文档处理** | Apache PDFBox | 3.0.8 | PDF 解析、图片提取 |
 | **测试** | Testcontainers | 1.19.3 | 集成测试（Milvus 容器） |
 
@@ -51,7 +52,7 @@
 
 - **JDK 17+**（推荐使用 Eclipse Temurin 或 Oracle JDK）
 - **Maven 3.8+**
-- **Docker**（用于运行 Milvus）
+- **Docker & Docker Compose**（用于运行 Milvus、MySQL、Redis 等服务）
 - **DashScope API Key**（从[阿里云百炼平台](https://bailian.console.aliyun.com/)获取）
 
 ### 安装步骤
@@ -76,17 +77,24 @@ $env:DASHSCOPE_API_KEY="sk-your-api-key-here"
 set DASHSCOPE_API_KEY=sk-your-api-key-here
 ```
 
-#### 3. 启动 Milvus 向量数据库
+#### 3. 启动基础设施服务
 
 ```bash
+# 启动所有服务（Milvus、MySQL、Redis 及其依赖）
 docker-compose up -d
+
+# 等待服务启动完成（约 1-2 分钟）
+docker-compose ps
+# 应该看到所有容器状态为 Up/healthy
 ```
 
-验证 Milvus 已启动：
-```bash
-docker-compose ps
-# 应该看到 milvus 容器状态为 Up
-```
+服务包括：
+- **Milvus 2.5.3**（向量数据库）
+- **MySQL 8.0**（关系型数据库）
+- **Redis 7.2**（缓存）
+- **Etcd**（Milvus 元数据）
+- **MinIO**（Milvus 对象存储）
+- **Attu**（Milvus 可视化管理）
 
 #### 4. 编译并运行应用
 
@@ -104,9 +112,49 @@ mvn spring-boot:run -Dspring-boot.run.profiles=prod
 #### 5. 验证服务
 
 应用启动后访问以下端点：
+
+**应用端点**：
 - **健康检查**：http://localhost:8080/actuator/health
 - **应用信息**：http://localhost:8080/actuator/info
 - **性能指标**：http://localhost:8080/actuator/metrics
+
+**可视化管理界面**：
+- **Milvus Attu**（向量数据库管理）：http://localhost:8000
+  - 服务器地址：`milvus`
+  - 端口：`19530`
+  - 无需用户名密码，直接连接即可查看 Collection、数据统计
+  
+- **MinIO Console**（对象存储管理）：http://localhost:9001
+  - 用户名：`minioadmin`
+  - 密码：`minioadmin`
+
+**数据库连接**：
+- **MySQL**：
+  ```bash
+  # 通过 Docker 连接
+  docker-compose exec mysql mysql -uraguser -pragpassword rag_server
+  
+  # 或使用客户端工具连接
+  # Host: localhost
+  # Port: 3306
+  # User: raguser
+  # Password: ragpassword
+  # Database: rag_server
+  ```
+
+- **Redis**：
+  ```bash
+  # 通过 Docker 连接
+  docker-compose exec redis redis-cli
+  
+  # 查看缓存键
+  docker-compose exec redis redis-cli KEYS "rag:*"
+  
+  # 或使用 Redis Desktop Manager 等客户端
+  # Host: localhost
+  # Port: 6379
+  # 无密码
+  ```
 
 ## 📁 项目结构
 
@@ -301,21 +349,27 @@ netstat -an | grep 19530
 
 **解决方案**：
 1. 检查批量处理是否启用（`batch_size=16`）
-2. 调整 QPS 限流参数：`spring.ai.dashscope.qps`
-3. 启用缓存：`spring.cache.type=caffeine`
+2. 确认 Redis 缓存已启用（`spring.cache.type=redis`）
+3. 调整 QPS 限流参数：`spring.ai.dashscope.qps`
 4. 使用更快的 Embedding 模型
 
-### H2 数据库文件锁定
+### MySQL 连接失败
 
-**问题**：应用无法启动，提示数据库被锁定
+**问题**：应用启动时提示无法连接 MySQL
 
 **解决方案**：
 ```bash
-# 删除数据库锁文件
-rm data/db/rag_server.lock.db
+# 1. 检查 MySQL 是否已启动
+docker-compose ps mysql
 
-# 或使用内存模式（数据不持久化）
-# 修改 application.yaml: url: jdbc:h2:mem:rag_server
+# 2. 查看 MySQL 日志
+docker-compose logs mysql
+
+# 3. 重启 MySQL
+docker-compose restart mysql
+
+# 4. 验证数据库已创建
+docker-compose exec mysql mysql -uraguser -pragpassword -e "SHOW DATABASES;"
 ```
 
 ## 📚 文档资源
@@ -357,7 +411,7 @@ rm data/db/rag_server.lock.db
 ---
 
 **版本**: 1.0.0-SNAPSHOT  
-**最后更新**: 2025-01-06  
+**最后更新**: 2026-11-08  
 **维护者**: RAG-SERVER 开发团队
 
 **⭐ 如果这个项目对你有帮助，请给一个 Star！**

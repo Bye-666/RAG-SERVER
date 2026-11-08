@@ -83,8 +83,23 @@ public class IngestionHistory {
      *
      * <p>注意：此字段仅用于记录和显示，业务逻辑应使用fileHash。</p>
      */
-    @Column(name = "file_path", length = 512, nullable = false)
+    @Column(name = "file_path", length = 1024, nullable = false)
     private String filePath;
+
+    /**
+     * 文件名
+     *
+     * <p>文档的原始文件名（不含路径）。</p>
+     *
+     * <p>示例：</p>
+     * <ul>
+     *   <li>产品手册.pdf</li>
+     *   <li>技术文档.pdf</li>
+     *   <li>产品说明书_v2.0.pdf</li>
+     * </ul>
+     */
+    @Column(name = "file_name", length = 512, nullable = false)
+    private String fileName;
 
     /**
      * 文件大小（字节）

@@ -126,6 +126,7 @@ public class IngestionService {
 
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
+            history.setFileName(filePath.getFileName().toString());
             history.setFileHash(fileHash);
             history.setFileSize(filePath.toFile().length());
             history.setChunkCount(result.getChunksProcessed());
@@ -147,6 +148,7 @@ public class IngestionService {
         try {
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
+            history.setFileName(filePath.getFileName().toString());
             history.setFileHash("FAILED_" + System.currentTimeMillis());
             history.setFileSize(filePath.toFile().length());
             history.setChunkCount(0);

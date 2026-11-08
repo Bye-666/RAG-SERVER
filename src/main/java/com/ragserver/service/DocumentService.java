@@ -515,8 +515,13 @@ public class DocumentService {
         private Long fileSize;          // 文件大小
         private String status;          // 状态
         private String collection;      // Collection名称
+
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
         private java.time.Instant processedAt;  // 处理时间
+
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
         private java.time.Instant createdAt;    // 创建时间（同processedAt）
+
         private Integer chunkCount;     // Chunk数量
 
         // Getters and Setters

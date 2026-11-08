@@ -236,6 +236,12 @@
             <version>33.0.0-jre</version>
         </dependency>
 
+        <!-- Jackson JSR310：支持 Java 8 日期时间类型序列化 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
         <!--
             ========================================
             测试依赖

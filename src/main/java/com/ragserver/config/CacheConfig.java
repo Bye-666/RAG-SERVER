@@ -2,6 +2,7 @@ package com.ragserver.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -11,14 +12,16 @@ import org.springframework.context.annotation.Configuration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 缓存配置
+ * 缓存配置（Caffeine 备用方案）
  *
- * <p>使用Caffeine作为缓存实现，提供高性能的本地缓存：</p>
+ * <p>当 Redis 不可用时，使用 Caffeine 作为本地缓存。</p>
+ *
+ * <p><strong>注意</strong>：Redis 是主缓存方案（见 RedisConfig），Caffeine 仅作为备用。</p>
+ *
+ * <h3>何时启用 Caffeine</h3>
  * <ul>
- *   <li>查询结果缓存：缓存RAG查询结果</li>
- *   <li>Embedding缓存：缓存文本向量</li>
- *   <li>检索结果缓存：缓存检索到的文档</li>
- *   <li>统计数据缓存：缓存Dashboard统计信息</li>
+ *   <li>配置 {@code spring.cache.type=caffeine}</li>
+ *   <li>或者 Redis 服务不可用</li>
  * </ul>
  *
  * <h3>缓存策略</h3>
@@ -55,28 +58,12 @@ import java.util.concurrent.TimeUnit;
  *   </tr>
  * </table>
  *
- * <h3>使用示例</h3>
- * <pre>{@code
- * @Service
- * public class RagService {
- *     @Cacheable(value = "ragQuery", key = "#question + '_' + #topK")
- *     public String query(String question, int topK) {
- *         // 查询逻辑
- *     }
- *
- *     @CacheEvict(value = "ragQuery", allEntries = true)
- *     public void clearCache() {
- *         // 清除所有缓存
- *     }
- * }
- * }</pre>
- *
  * @author RAG-SERVER开发团队
  * @since 1.0.0
  */
 @Slf4j
 @Configuration
-@EnableCaching
+@ConditionalOnProperty(name = "spring.cache.type", havingValue = "caffeine")
 public class CacheConfig {
 
     /**

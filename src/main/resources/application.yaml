@@ -27,6 +27,20 @@ spring:
   #   active: dev
 
   # ========================================
+  # Jackson 配置
+  # ========================================
+  jackson:
+    # 序列化日期为时间戳（false 则序列化为 ISO-8601 字符串）
+    serialization:
+      write-dates-as-timestamps: false
+    # 反序列化配置
+    deserialization:
+      # 忽略未知属性
+      fail-on-unknown-properties: false
+    # 时区配置
+    time-zone: Asia/Shanghai
+
+  # ========================================
   # Spring AI 配置
   # ========================================
   # 注意：这些配置项将在阶段B（DashScope集成）中实际使用
@@ -37,9 +51,9 @@ spring:
       # API基础URL
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       # LLM模型名称
-      model: qwen3.7-flash
+      model: qwen3.8-2.4t-a95b
       # Embedding模型名称
-      embedding-model: qwen3.7-text-embedding
+      embedding-model: qwen3.7-text-embedding-flash
       # Embedding向量维度
       embedding-dimension: 1024
       # Vision模型名称
