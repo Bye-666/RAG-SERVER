@@ -63,6 +63,22 @@ b791e03 feat: 添加文档上传历史和查询历史独立页面
 
 ## 🔧 正在做什么 / 刚完成了什么
 
+### ✅ 刚完成：Swagger API 文档（2026-11-08 16:45）
+
+#### 实现内容
+- ✅ **添加 SpringDoc OpenAPI 依赖**：springdoc-openapi-starter-webmvc-ui 2.3.0
+- ✅ **创建 OpenApiConfig**：配置 API 元数据、服务器列表
+- ✅ **添加 API 注解**：为 RagController 添加 @Tag、@Operation、@Parameter 注解
+- ✅ **配置访问路径**：
+  - Swagger UI: http://localhost:8080/swagger-ui.html
+  - OpenAPI JSON: http://localhost:8080/v3/api-docs
+
+#### 功能特性
+- 📖 自动生成 REST API 文档
+- 🧪 在线测试 API 接口
+- 📋 清晰的请求/响应示例
+- 🎨 美观的交互式界面
+
 ### ✅ 刚完成：前端重构和问题修复（2026-11-08 16:35）
 
 #### 修复的问题

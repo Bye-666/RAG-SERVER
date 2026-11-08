@@ -117,6 +117,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=prod
 - **健康检查**：http://localhost:8080/actuator/health
 - **应用信息**：http://localhost:8080/actuator/info
 - **性能指标**：http://localhost:8080/actuator/metrics
+- **API 文档**：http://localhost:8080/swagger-ui.html ✨
 
 **可视化管理界面**：
 - **Milvus Attu**（向量数据库管理）：http://localhost:8000
