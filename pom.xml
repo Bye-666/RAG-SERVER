@@ -239,7 +239,7 @@
         <!-- Jackson JSR310：支持 Java 8 日期时间类型序列化 -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
-<parameter name="artifactId">jackson-datatype-jsr310</artifactId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
         <!-- SpringDoc OpenAPI：自动生成 API 文档 -->
