@@ -2,6 +2,10 @@ package com.ragserver.controller;
 
 import com.ragserver.entity.IngestionHistory;
 import com.ragserver.repository.IngestionHistoryRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +28,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/ingestion-history")
+@Tag(name = "上传历史", description = "文档摄取历史记录查询")
 public class IngestionHistoryController {
 
     private final IngestionHistoryRepository ingestionHistoryRepository;
@@ -35,38 +40,20 @@ public class IngestionHistoryController {
     /**
      * 获取文档上传历史
      *
-     * <h3>请求示例</h3>
-     * <pre>
-     * GET /api/ingestion-history?page=0&size=20
-     * </pre>
-     *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "content": [
-     *     {
-     *       "fileHash": "abc123...",
-     *       "fileName": "document.pdf",
-     *       "status": "SUCCESS",
-     *       "chunkCount": 156,
-     *       "processingTimeMs": 2340,
-     *       "createdAt": "2024-01-15T10:30:00"
-     *     }
-     *   ],
-     *   "totalElements": 50,
-     *   "totalPages": 3,
-     *   "currentPage": 0,
-     *   "pageSize": 20
-     * }
-     * }</pre>
-     *
      * @param page 页码（从0开始）
      * @param size 每页大小
      * @return 分页的文档上传历史
      */
     @GetMapping
+    @Operation(
+        summary = "获取文档上传历史",
+        description = "分页查询文档摄取历史记录，按处理时间倒序排列"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回历史记录")
     public ResponseEntity<Map<String, Object>> getIngestionHistory(
+            @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页大小", example = "20")
             @RequestParam(defaultValue = "20") int size) {
 
         log.info("获取文档上传历史：page={}, size={}", page, size);
@@ -103,19 +90,14 @@ public class IngestionHistoryController {
     /**
      * 获取文档上传统计信息
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "total": 50,
-     *   "success": 48,
-     *   "failed": 2,
-     *   "processing": 0
-     * }
-     * }</pre>
-     *
      * @return 文档上传统计信息
      */
     @GetMapping("/stats")
+    @Operation(
+        summary = "获取文档上传统计",
+        description = "获取文档摄取的统计信息，包括总数、成功数、失败数等"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回统计信息")
     public ResponseEntity<Map<String, Object>> getIngestionStats() {
         log.info("获取文档上传统计");
 

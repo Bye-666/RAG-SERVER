@@ -2,6 +2,11 @@ package com.ragserver.controller;
 
 import com.ragserver.entity.QueryHistory;
 import com.ragserver.repository.QueryHistoryRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,20 +24,7 @@ import java.util.Map;
 /**
  * 查询历史Controller
  *
- * <p>提供查询历史记录的REST接口：</p>
- * <ul>
- *   <li>查询历史列表</li>
- *   <li>统计分析</li>
- *   <li>搜索过滤</li>
- * </ul>
- *
- * <h3>API端点</h3>
- * <pre>
- * GET  /api/history              - 获取最近查询历史
- * GET  /api/history/{id}         - 获取单条历史详情
- * GET  /api/history/search       - 搜索查询历史
- * GET  /api/history/stats        - 获取统计信息
- * </pre>
+ * <p>提供查询历史记录的REST接口。</p>
  *
  * @author RAG-SERVER开发团队
  * @since 1.0.0
@@ -40,6 +32,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/history")
+@Tag(name = "查询历史", description = "RAG 查询历史记录管理")
 public class QueryHistoryController {
 
     private final QueryHistoryRepository queryHistoryRepository;
@@ -51,30 +44,17 @@ public class QueryHistoryController {
     /**
      * 获取最近的查询历史
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "histories": [
-     *     {
-     *       "id": 1,
-     *       "question": "什么是RAG？",
-     *       "answer": "RAG是检索增强生成...",
-     *       "topK": 10,
-     *       "enableRerank": false,
-     *       "responseTimeMs": 1500,
-     *       "status": "SUCCESS",
-     *       "createdAt": "2026-10-06T10:00:00"
-     *     }
-     *   ],
-     *   "total": 1
-     * }
-     * }</pre>
-     *
      * @param limit 返回数量限制（默认20）
      * @return 查询历史列表
      */
     @GetMapping
+    @Operation(
+        summary = "获取最近查询历史",
+        description = "获取最近的 RAG 查询历史记录，按时间倒序排列"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回历史记录")
     public ResponseEntity<Map<String, Object>> getRecentHistory(
+            @Parameter(description = "返回数量限制", example = "20")
             @RequestParam(defaultValue = "20") int limit) {
 
         log.info("获取最近查询历史，limit={}", limit);
@@ -99,29 +79,20 @@ public class QueryHistoryController {
     /**
      * 分页获取查询历史
      *
-     * <h3>请求示例</h3>
-     * <pre>
-     * GET /api/history/page?page=0&size=10
-     * </pre>
-     *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "content": [...],
-     *   "totalElements": 50,
-     *   "totalPages": 5,
-     *   "currentPage": 0,
-     *   "pageSize": 10
-     * }
-     * }</pre>
-     *
      * @param page 页码（从0开始）
      * @param size 每页大小
      * @return 分页的查询历史
      */
     @GetMapping("/page")
+    @Operation(
+        summary = "分页获取查询历史",
+        description = "分页查询 RAG 查询历史记录，支持自定义页码和每页大小"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回分页数据")
     public ResponseEntity<Map<String, Object>> getHistoryPage(
+            @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页大小", example = "20")
             @RequestParam(defaultValue = "20") int size) {
 
         log.info("分页获取查询历史：page={}, size={}", page, size);
@@ -153,7 +124,17 @@ public class QueryHistoryController {
      * @return 历史详情
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getHistoryById(@PathVariable Long id) {
+    @Operation(
+        summary = "获取查询历史详情",
+        description = "根据 ID 获取单条查询历史的详细信息"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回历史详情"),
+        @ApiResponse(responseCode = "404", description = "历史记录不存在")
+    })
+    public ResponseEntity<Map<String, Object>> getHistoryById(
+            @Parameter(description = "历史记录ID", required = true)
+            @PathVariable Long id) {
         log.info("获取查询历史详情，id={}", id);
 
         try {
@@ -171,19 +152,6 @@ public class QueryHistoryController {
     /**
      * 搜索查询历史
      *
-     * <p>支持多种搜索条件：</p>
-     * <ul>
-     *   <li>关键词搜索</li>
-     *   <li>状态过滤</li>
-     *   <li>时间范围</li>
-     * </ul>
-     *
-     * <h3>请求示例</h3>
-     * <pre>
-     * GET /api/history/search?keyword=RAG&status=SUCCESS
-     * GET /api/history/search?startTime=2026-10-01T00:00:00&endTime=2026-10-31T23:59:59
-     * </pre>
-     *
      * @param keyword 关键词（可选）
      * @param status 状态（可选）
      * @param startTime 开始时间（可选）
@@ -191,10 +159,19 @@ public class QueryHistoryController {
      * @return 搜索结果
      */
     @GetMapping("/search")
+    @Operation(
+        summary = "搜索查询历史",
+        description = "支持按关键词、状态、时间范围搜索查询历史记录"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回搜索结果")
     public ResponseEntity<Map<String, Object>> searchHistory(
+            @Parameter(description = "搜索关键词", example = "RAG")
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "查询状态", example = "SUCCESS")
             @RequestParam(required = false) String status,
+            @Parameter(description = "开始时间", example = "2026-10-01T00:00:00")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @Parameter(description = "结束时间", example = "2026-10-31T23:59:59")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
 
         log.info("搜索查询历史：keyword={}, status={}, startTime={}, endTime={}",
@@ -232,21 +209,14 @@ public class QueryHistoryController {
     /**
      * 获取统计信息
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "totalQueries": 100,
-     *   "successQueries": 85,
-     *   "failedQueries": 10,
-     *   "noResultsQueries": 5,
-     *   "averageResponseTime": 1500.5,
-     *   "slowestQueries": [...]
-     * }
-     * }</pre>
-     *
      * @return 统计信息
      */
     @GetMapping("/stats")
+    @Operation(
+        summary = "获取查询历史统计",
+        description = "获取查询历史的统计信息，包括总数、成功率、平均响应时间等"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回统计信息")
     public ResponseEntity<Map<String, Object>> getStats() {
         log.info("获取查询历史统计信息");
 
@@ -279,21 +249,14 @@ public class QueryHistoryController {
     /**
      * 获取高频问题
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "frequentQuestions": [
-     *     {
-     *       "question": "什么是RAG？",
-     *       "count": 50
-     *     }
-     *   ]
-     * }
-     * }</pre>
-     *
      * @return 高频问题列表
      */
     @GetMapping("/frequent")
+    @Operation(
+        summary = "获取高频问题",
+        description = "获取最常被问到的问题列表，按查询次数排序"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回高频问题")
     public ResponseEntity<Map<String, Object>> getFrequentQuestions() {
         log.info("获取高频问题");
 

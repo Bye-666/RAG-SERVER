@@ -3,6 +3,9 @@ package com.ragserver.controller;
 import com.ragserver.repository.IngestionHistoryRepository;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.ImageStorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,29 +20,7 @@ import java.util.Map;
 /**
  * 统计信息API
  *
- * <p>提供系统统计信息的REST接口：</p>
- * <ul>
- *   <li>总览统计：文档数、向量数、图片数等</li>
- *   <li>Collection统计：各Collection的详细信息</li>
- * </ul>
- *
- * <h3>API端点</h3>
- * <pre>
- * GET /api/stats/overview    - 获取系统总览统计
- * GET /api/stats/collections - 获取Collection统计
- * </pre>
- *
- * <h3>使用示例</h3>
- * <pre>
- * curl http://localhost:8080/api/stats/overview
- * {
- *   "totalDocuments": 100,
- *   "successDocuments": 95,
- *   "failedDocuments": 5,
- *   "vectorCount": 1500,
- *   "imageCount": 250
- * }
- * </pre>
+ * <p>提供系统统计信息的REST接口。</p>
  *
  * @author RAG-SERVER开发团队
  * @since 1.0.0
@@ -47,6 +28,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/stats")
+@Tag(name = "统计监控", description = "系统统计信息和性能指标")
 public class StatsController {
 
     private final DocumentService documentService;
@@ -64,22 +46,14 @@ public class StatsController {
     /**
      * 获取系统总览统计
      *
-     * <p>返回系统级别的统计信息。</p>
-     *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "totalDocuments": 100,
-     *   "successDocuments": 95,
-     *   "failedDocuments": 5,
-     *   "vectorCount": 1500,
-     *   "imageCount": 250
-     * }
-     * }</pre>
-     *
      * @return 统计信息
      */
     @GetMapping("/overview")
+    @Operation(
+        summary = "获取系统总览统计",
+        description = "获取系统的整体统计信息，包括文档数、向量数、Collection 数、图片数等"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回统计信息")
     public ResponseEntity<Map<String, Object>> getOverview() {
         log.info("获取系统总览统计");
 
@@ -131,22 +105,14 @@ public class StatsController {
     /**
      * 获取Collection统计
      *
-     * <p>返回Collection级别的详细统计信息。</p>
-     *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "collectionName": "rag_knowledge_hub_dev",
-     *   "totalDocuments": 100,
-     *   "successDocuments": 95,
-     *   "failedDocuments": 5,
-     *   "vectorCount": 1500
-     * }
-     * }</pre>
-     *
      * @return Collection统计信息
      */
     @GetMapping("/collections")
+    @Operation(
+        summary = "获取 Collection 统计",
+        description = "获取每个 Collection 的详细统计信息，包括文档数、向量数等"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回 Collection 统计")
     public ResponseEntity<List<Map<String, Object>>> getCollections() {
         log.info("获取Collection统计");
 

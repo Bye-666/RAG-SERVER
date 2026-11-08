@@ -111,7 +111,7 @@ public class RagServerApplication {
                 "========================================\n" +
                 "   访问地址：http://localhost:8080\n" +
                 "   健康检查：http://localhost:8080/actuator/health\n" +
-                "   API文档：http://localhost:8080/swagger-ui.html（待实现）\n" +
+                "   API文档：http://localhost:8080/swagger-ui.html\n" +
                 "========================================\n");
     }
 }

@@ -38,14 +38,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 @Tag(name = "RAG核心接口", description = "文档摄取、RAG查询、文档管理")
- * </pre>
- *
- * @author RAG-SERVER开发团队
- * @since 1.0.0
- */
-@Slf4j
-@RestController
-@RequestMapping("/api")
 public class RagController {
 
     private final IngestionService ingestionService;
@@ -86,8 +78,6 @@ public class RagController {
             @Parameter(description = "PDF 文件", required = true)
             @RequestParam("file") MultipartFile file,
             @Parameter(description = "Collection 名称（可选）")
-            @RequestParam(value = "collection", required = false) String collection) {
-            @RequestParam("file") MultipartFile file,
             @RequestParam(value = "collection", required = false) String collection) {
 
         log.info("接收文档摄取请求：filename={}, size={}, collection={}",
@@ -150,23 +140,14 @@ public class RagController {
     /**
      * 列出所有文档
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "documents": [
-     *     {
-     *       "fileHash": "abc123",
-     *       "filePath": "/path/to/doc.pdf",
-     *       "status": "SUCCESS",
-     *       "chunkCount": 25
-     *     }
-     *   ]
-     * }
-     * }</pre>
-     *
      * @return 文档列表
      */
     @GetMapping("/documents")
+    @Operation(
+        summary = "列出所有文档",
+        description = "获取系统中所有已摄取的文档列表，包括文档状态、Chunk 数量等信息"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回文档列表")
     public ResponseEntity<Map<String, Object>> listDocuments() {
         log.info("列出所有文档");
 
@@ -188,23 +169,21 @@ public class RagController {
     /**
      * 获取文档详情
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "fileHash": "abc123",
-     *   "filePath": "/path/to/doc.pdf",
-     *   "fileSize": 1024000,
-     *   "status": "SUCCESS",
-     *   "chunkCount": 25,
-     *   "processedAt": "2025-01-04T10:00:00Z"
-     * }
-     * }</pre>
-     *
      * @param id 文档ID（文件哈希）
      * @return 文档详情
      */
     @GetMapping("/documents/{id}")
-    public ResponseEntity<Map<String, Object>> getDocument(@PathVariable String id) {
+    @Operation(
+        summary = "获取文档详情",
+        description = "根据文档 ID 获取文档的详细信息，包括文件路径、大小、处理状态等"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回文档详情"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<Map<String, Object>> getDocument(
+            @Parameter(description = "文档ID（文件哈希）", required = true)
+            @PathVariable String id) {
         log.info("获取文档详情：id={}", id);
 
         try {
@@ -229,26 +208,21 @@ public class RagController {
     /**
      * 获取文档的所有chunks
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "chunks": [
-     *     {
-     *       "id": "doc_chunk_1",
-     *       "text": "这是第一段文本内容...",
-     *       "source": "document.pdf",
-     *       "page": 1
-     *     }
-     *   ],
-     *   "total": 25
-     * }
-     * }</pre>
-     *
      * @param id 文档ID（文件哈希或文件路径）
      * @return chunks列表
      */
     @GetMapping("/documents/{id}/chunks")
-    public ResponseEntity<Map<String, Object>> getDocumentChunks(@PathVariable String id) {
+    @Operation(
+        summary = "获取文档的所有 Chunks",
+        description = "获取指定文档切分后的所有文本块（Chunks），用于查看文档如何被切分和存储"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回 Chunks 列表"),
+        @ApiResponse(responseCode = "500", description = "服务器错误")
+    })
+    public ResponseEntity<Map<String, Object>> getDocumentChunks(
+            @Parameter(description = "文档ID（文件哈希或文件路径）", required = true)
+            @PathVariable String id) {
         log.info("获取文档chunks：id={}", id);
 
         try {
@@ -269,19 +243,21 @@ public class RagController {
     /**
      * 删除文档
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "message": "文档已删除",
-     *   "filePath": "/path/to/doc.pdf"
-     * }
-     * }</pre>
-     *
      * @param id 文档ID（文件路径或哈希）
      * @return 删除结果
      */
     @DeleteMapping("/documents/{id}")
-    public ResponseEntity<Map<String, Object>> deleteDocument(@PathVariable String id) {
+    @Operation(
+        summary = "删除文档",
+        description = "删除指定文档及其所有 Chunks，同时清理向量数据库和摄取历史记录"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "删除成功"),
+        @ApiResponse(responseCode = "500", description = "删除失败")
+    })
+    public ResponseEntity<Map<String, Object>> deleteDocument(
+            @Parameter(description = "文档ID（文件路径或哈希）", required = true)
+            @PathVariable String id) {
         log.info("删除文档：id={}", id);
 
         try {
@@ -305,28 +281,34 @@ public class RagController {
     /**
      * RAG查询
      *
-     * <h3>请求示例</h3>
-     * <pre>{@code
-     * {
-     *   "question": "什么是RAG？",
-     *   "topK": 5,
-     *   "enableRerank": false
-     * }
-     * }</pre>
-     *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "answer": "RAG是检索增强生成...",
-     *   "question": "什么是RAG？"
-     * }
-     * }</pre>
-     *
      * @param request 查询请求
      * @return 查询结果
      */
     @PostMapping("/query")
-    public ResponseEntity<Map<String, Object>> query(@RequestBody Map<String, Object> request) {
+    @Operation(
+        summary = "RAG 查询（非流式）",
+        description = "基于知识库回答问题，返回完整答案（非流式）。适用于不需要实时显示的场景"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "查询成功"),
+        @ApiResponse(responseCode = "400", description = "参数错误")
+    })
+    public ResponseEntity<Map<String, Object>> query(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "查询请求参数",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                        {
+                          "question": "什么是 RAG？",
+                          "topK": 5,
+                          "enableRerank": false
+                        }
+                        """)
+                )
+            )
+            @RequestBody Map<String, Object> request) {
         String question = (String) request.get("question");
         Integer topK = request.containsKey("topK") ? (Integer) request.get("topK") : 10;
         Boolean enableRerank = request.containsKey("enableRerank") ? (Boolean) request.get("enableRerank") : false;
@@ -393,38 +375,26 @@ public class RagController {
     /**
      * 流式RAG查询
      *
-     * <p>使用SSE（Server-Sent Events）流式返回答案，提供更好的用户体验。</p>
-     *
-     * <h3>请求示例</h3>
-     * <pre>
-     * GET /api/query/stream?question=什么是RAG？&topK=5&enableRerank=false
-     * Accept: text/event-stream
-     * </pre>
-     *
-     * <h3>响应格式</h3>
-     * <pre>
-     * data: 文本内容逐步返回
-     * data: [引用信息]
-     * </pre>
-     *
-     * <h3>前端使用示例</h3>
-     * <pre>{@code
-     * const eventSource = new EventSource('/api/query/stream?question=什么是RAG？');
-     * eventSource.onmessage = (event) => {
-     *     console.log(event.data);
-     *     // 逐步显示内容
-     * };
-     * }</pre>
-     *
      * @param question 用户问题
      * @param topK 检索文档数量（可选，默认10）
      * @param enableRerank 是否启用重排序（可选，默认false）
      * @return 流式答案文本
      */
     @GetMapping(value = "/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(
+        summary = "RAG 流式查询",
+        description = "基于知识库回答问题，答案以 SSE (Server-Sent Events) 流式返回，支持实时显示。适用于需要逐字展示的聊天场景"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "查询成功，返回流式内容"),
+        @ApiResponse(responseCode = "400", description = "参数错误")
+    })
     public Flux<String> queryStream(
+            @Parameter(description = "用户问题", required = true, example = "什么是 RAG？")
             @RequestParam String question,
+            @Parameter(description = "检索文档数量", example = "10")
             @RequestParam(defaultValue = "10") int topK,
+            @Parameter(description = "是否启用重排序", example = "false")
             @RequestParam(defaultValue = "false") boolean enableRerank) {
 
         log.info("流式RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
@@ -444,22 +414,14 @@ public class RagController {
     /**
      * 列出所有Collection
      *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "collections": [
-     *     {
-     *       "name": "rag_knowledge_hub_dev",
-     *       "documentCount": 100,
-     *       "vectorCount": 1500
-     *     }
-     *   ]
-     * }
-     * }</pre>
-     *
      * @return Collection列表
      */
     @GetMapping("/collections")
+    @Operation(
+        summary = "列出所有 Collection",
+        description = "获取向量数据库中所有 Collection 的列表及其统计信息"
+    )
+    @ApiResponse(responseCode = "200", description = "成功返回 Collection 列表")
     public ResponseEntity<Map<String, Object>> listCollections() {
         log.info("列出所有Collection");
 

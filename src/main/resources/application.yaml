@@ -40,29 +40,9 @@ spring:
     # 时区配置
     time-zone: Asia/Shanghai
 
-# ========================================
-# SpringDoc OpenAPI 配置
-# ========================================
-springdoc:
-  # API 文档路径
-  api-docs:
-    path: /v3/api-docs
-    enabled: true
-  # Swagger UI 路径
-  swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-    # 默认展开级别
-    doc-expansion: none
-    # 显示请求持续时间
-    display-request-duration: true
-  # 默认 Consumes/Produces
-  default-consumes-media-type: application/json
-  default-produces-media-type: application/json
-
-# ========================================
-# Milvus 向量数据库配置
-# ========================================
+  # ========================================
+  # Spring AI 配置
+  # ========================================
   # 注意：这些配置项将在阶段B（DashScope集成）中实际使用
   ai:
     dashscope:
@@ -344,3 +324,23 @@ server:
     include-exception: true
     # 是否包含堆栈跟踪（开发环境true，生产环境false）
     include-stacktrace: on_param
+
+# ========================================
+# SpringDoc OpenAPI 配置
+# ========================================
+springdoc:
+  # API 文档路径
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  # Swagger UI 路径
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    # 默认展开级别
+    doc-expansion: none
+    # 显示请求持续时间
+    display-request-duration: true
+  # 默认 Consumes/Produces
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
