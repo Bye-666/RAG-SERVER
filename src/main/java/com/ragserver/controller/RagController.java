@@ -5,6 +5,14 @@ import com.ragserver.retrieval.model.Document;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
@@ -21,33 +29,15 @@ import java.util.Map;
 /**
  * RAG管理API
  *
- * <p>提供文档摄取、查询、管理的REST接口：</p>
- * <ul>
- *   <li>文档摄取：上传PDF并处理</li>
- *   <li>文档管理：列表、详情、删除</li>
- *   <li>RAG查询：问答接口</li>
- *   <li>Collection管理：列表查询</li>
- * </ul>
+ * <p>提供文档摄取、查询、管理的REST接口。</p>
  *
- * <h3>API端点</h3>
- * <pre>
- * POST   /api/ingest              - 摄取文档
- * GET    /api/documents           - 列出所有文档
- * GET    /api/documents/{id}      - 获取文档详情
- * DELETE /api/documents/{id}      - 删除文档
- * POST   /api/query               - RAG查询
- * GET    /api/collections         - 列出所有Collection
- * </pre>
- *
- * <h3>使用示例</h3>
- * <pre>
- * # 摄取文档
- * curl -X POST -F "file=@document.pdf" http://localhost:8080/api/ingest
- *
- * # RAG查询
- * curl -X POST http://localhost:8080/api/query \
- *   -H "Content-Type: application/json" \
- *   -d '{"question": "什么是RAG？", "topK": 5}'
+ * @author RAG-SERVER开发团队
+ * @since 1.0.0
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api")
+@Tag(name = "RAG核心接口", description = "文档摄取、RAG查询、文档管理")
  * </pre>
  *
  * @author RAG-SERVER开发团队
@@ -78,30 +68,25 @@ public class RagController {
      *
      * <p>上传PDF文件并进行摄取处理。</p>
      *
-     * <h3>请求示例</h3>
-     * <pre>
-     * POST /api/ingest
-     * Content-Type: multipart/form-data
-     *
-     * file: document.pdf
-     * collection: rag_knowledge_hub (可选)
-     * </pre>
-     *
-     * <h3>响应示例</h3>
-     * <pre>{@code
-     * {
-     *   "fileHash": "abc123...",
-     *   "chunkCount": 25,
-     *   "status": "SUCCESS"
-     * }
-     * }</pre>
-     *
      * @param file 上传的PDF文件
      * @param collection Collection名称（可选）
      * @return 摄取结果
      */
     @PostMapping("/ingest")
+    @Operation(
+        summary = "摄取文档",
+        description = "上传 PDF 文档，自动进行解析、切分、向量化并存储到 Milvus"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "摄取成功"),
+        @ApiResponse(responseCode = "400", description = "请求参数错误"),
+        @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<Map<String, Object>> ingest(
+            @Parameter(description = "PDF 文件", required = true)
+            @RequestParam("file") MultipartFile file,
+            @Parameter(description = "Collection 名称（可选）")
+            @RequestParam(value = "collection", required = false) String collection) {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "collection", required = false) String collection) {
 
