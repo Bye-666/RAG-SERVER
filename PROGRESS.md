@@ -63,6 +63,25 @@ b791e03 feat: 添加文档上传历史和查询历史独立页面
 
 ## 🔧 正在做什么 / 刚完成了什么
 
+### ✅ 刚完成：完善 Swagger API 文档（2026-11-08 20:15）
+
+#### 实现内容
+- ✅ **为所有 Controller 添加完整的 Swagger 注解**
+  - RagController: 8个接口（文档摄取、RAG查询、文档管理等）
+  - StatsController: 2个接口（系统总览、Collection统计）
+  - IngestionHistoryController: 2个接口（上传历史、统计）
+  - QueryHistoryController: 6个接口（历史查询、搜索、统计、高频问题）
+
+#### 注解类型
+- `@Tag`: Controller 级别的中文分组和描述
+- `@Operation`: 每个接口的摘要和详细说明
+- `@Parameter`: 参数说明和示例值
+- `@ApiResponse/@ApiResponses`: 响应状态码和说明
+
+#### 访问地址
+- **Swagger UI**: http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
+
 ### ✅ 刚完成：Swagger API 文档（2026-11-08 16:45）
 
 #### 实现内容
