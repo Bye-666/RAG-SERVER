@@ -63,7 +63,30 @@ b791e03 feat: 添加文档上传历史和查询历史独立页面
 
 ## 🔧 正在做什么 / 刚完成了什么
 
-### ✅ 刚完成：基础设施适配（2026-11-08 01:04）
+### ✅ 刚完成：前端重构和问题修复（2026-11-08 16:35）
+
+#### 修复的问题
+- ✅ **数据库字段缺失**：添加 `IngestionHistory.fileName` 字段
+- ✅ **缓存配置冲突**：CacheConfig 添加 `@ConditionalOnProperty` 注解，避免与 Redis 冲突
+- ✅ **模型配置更新**：
+  - LLM：`qwen3.8-2.4t-a95b`
+  - Embedding：`qwen3.7-text-embedding-flash`
+- ✅ **文档更新**：CLAUDE.md 和 README.md 同步最新技术栈和配置
+
+#### 前端重构
+- ✅ **代码拆分**：将 1638 行的 index.html 拆分为：
+  - `css/style.css` (515行) - 样式
+  - `js/app.js` (787行) - 逻辑
+  - `index.html` (334行) - 结构
+- ✅ **提高可维护性**：模块化结构，便于后续开发
+
+#### 待解决问题
+- ⏳ **DocumentInfo 序列化问题**：`java.time.Instant` JSON 序列化失败
+  - 已添加 `jackson-datatype-jsr310` 依赖
+  - 已添加 `@JsonFormat` 注解
+  - 问题仍存在，需要进一步排查
+
+### ✅ 已完成：基础设施适配（2026-11-08 01:04）
 
 #### 技术栈升级
 - ✅ **数据库迁移**: H2 → MySQL 8.0
