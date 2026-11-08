@@ -188,16 +188,26 @@ RAG-SERVER/
 │   ├── application.yaml                    # 通用配置
 │   ├── application-dev.yaml                # 开发环境配置
 │   ├── application-prod.yaml               # 生产环境配置
-│   └── prompts/                            # Prompt 模板
+│   ├── prompts/                            # Prompt 模板
+│   └── static/                             # 前端资源
+│       ├── index.html                      # Dashboard 主页
+│       ├── css/style.css                   # 样式文件
+│       └── js/app.js                       # 前端逻辑
 ├── src/test/                               # 测试代码
+├── config/                                 # Docker 配置文件
+│   ├── mysql/                              # MySQL 配置和初始化脚本
+│   ├── redis/                              # Redis 配置
+│   └── milvus/                             # Milvus 配置
 ├── data/                                   # 运行时数据（gitignore）
 │   ├── documents/                          # 文档存储
 │   ├── images/                             # 图片存储
-│   └── db/                                 # H2 数据库文件
+│   └── milvus/                             # Milvus 数据
 ├── docker-compose.yml                      # Docker 编排配置
 ├── pom.xml                                 # Maven 依赖管理
+├── .env.example                            # 环境变量示例
 ├── CLAUDE.md                               # Claude Code 工作指南
 ├── DEV_SPEC.md                             # 开发规范（53 个任务）
+├── PROGRESS.md                             # 开发进度和技术决策
 └── README.md                               # 本文件
 ```
 
