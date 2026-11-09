@@ -2,6 +2,10 @@ package com.ragserver.mcp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.ragserver.mcp.exception.McpErrorResponse;
+import com.ragserver.mcp.exception.McpException;
+import com.ragserver.mcp.exception.McpServiceException;
+import com.ragserver.mcp.exception.McpValidationException;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
@@ -78,6 +82,15 @@ public class RagMcpTools {
     ) {}
 
     /**
+     * RAG List Docs 响应结果
+     */
+    public record RagListDocsResponse(
+            boolean success,
+            String message,
+            List<DocumentService.DocumentInfo> documents
+    ) {}
+
+    /**
      * RAG Delete Doc 请求参数
      */
     public record RagDeleteDocRequest(
@@ -108,13 +121,23 @@ public class RagMcpTools {
 
         return request -> {
             try {
+                // 参数验证
                 String question = request.question();
+                if (question == null || question.trim().isEmpty()) {
+                    throw McpValidationException.parameterRequired("question");
+                }
+
                 int topK = (request.topK() != null) ? request.topK() : 10;
+                if (topK < 1 || topK > 50) {
+                    throw McpValidationException.parameterOutOfRange("topK", topK, 1, 50);
+                }
+
                 boolean enableRerank = (request.enableRerank() != null) ? request.enableRerank() : false;
 
                 log.info("MCP Tool 调用: ragQuery, question={}, topK={}, enableRerank={}",
                         question, topK, enableRerank);
 
+                // 调用 RAG 服务
                 RagService.QueryResult result = ragService.query(question, topK, enableRerank);
 
                 return result.getAnswer() + "\n\n--- Performance ---\n" +
@@ -122,9 +145,14 @@ public class RagMcpTools {
                         "Retrieval: " + result.getRetrievalDurationMs() + " ms\n" +
                         "LLM: " + result.getLlmGenerationDurationMs() + " ms";
 
+            } catch (McpException e) {
+                log.error("ragQuery failed: {}", e.getMessage());
+                McpErrorResponse errorResponse = McpErrorResponse.fromException(e);
+                return String.format("Error [%s]: %s", errorResponse.errorCode(), errorResponse.message());
             } catch (Exception e) {
-                log.error("ragQuery failed", e);
-                return "Error: " + e.getMessage();
+                log.error("ragQuery failed with unexpected error", e);
+                McpErrorResponse errorResponse = McpErrorResponse.fromException(e);
+                return String.format("Error [%s]: %s", errorResponse.errorCode(), errorResponse.message());
             }
         };
     }
@@ -144,7 +172,12 @@ public class RagMcpTools {
             long startTime = System.currentTimeMillis();
 
             try {
+                // 参数验证
                 String filePath = request.filePath();
+                if (filePath == null || filePath.trim().isEmpty()) {
+                    throw McpValidationException.parameterRequired("filePath");
+                }
+
                 String collectionName = (request.collectionName() != null)
                         ? request.collectionName()
                         : "rag_collection";
@@ -187,19 +220,26 @@ public class RagMcpTools {
                     }
                     log.error("文档摄取失败: file={}, error={}", filePath, errorMessage);
 
-                    return new RagIngestResponse(
-                            false,
-                            "Ingestion failed: " + errorMessage,
-                            filePath,
-                            documentPath.getFileName().toString(),
-                            0,
-                            durationMs
-                    );
+                    throw new McpServiceException("Ingestion failed: " + errorMessage)
+                            .addDetail("filePath", filePath);
                 }
 
+            } catch (McpException e) {
+                long durationMs = System.currentTimeMillis() - startTime;
+                log.error("ragIngest failed: {}", e.getMessage());
+                McpErrorResponse errorResponse = McpErrorResponse.fromException(e);
+
+                return new RagIngestResponse(
+                        false,
+                        String.format("[%s] %s", errorResponse.errorCode(), errorResponse.message()),
+                        request.filePath(),
+                        null,
+                        0,
+                        durationMs
+                );
             } catch (Exception e) {
                 long durationMs = System.currentTimeMillis() - startTime;
-                log.error("ragIngest failed", e);
+                log.error("ragIngest failed with unexpected error", e);
 
                 return new RagIngestResponse(
                         false,
@@ -221,7 +261,7 @@ public class RagMcpTools {
      */
     @Bean
     @Description("List all documents in the RAG knowledge base")
-    public Function<RagListDocsRequest, List<DocumentService.DocumentInfo>> ragListDocs(DocumentService documentService) {
+    public Function<RagListDocsRequest, RagListDocsResponse> ragListDocs(DocumentService documentService) {
         log.info("注册 MCP Tool: ragListDocs");
 
         return request -> {
@@ -236,23 +276,38 @@ public class RagMcpTools {
                         var status = com.ragserver.entity.IngestionHistory.IngestionStatus.valueOf(statusFilter.toUpperCase());
                         List<DocumentService.DocumentInfo> docs = documentService.listDocumentsByStatus(status);
                         log.info("文档列表获取成功：status={}, count={}", statusFilter, docs.size());
-                        return docs;
+                        return new RagListDocsResponse(true, "Success", docs);
                     } catch (IllegalArgumentException e) {
                         log.warn("无效的状态过滤器：{}, 返回所有文档", statusFilter);
-                        List<DocumentService.DocumentInfo> docs = documentService.listDocuments();
-                        log.info("文档列表获取成功：count={}", docs.size());
-                        return docs;
+                        throw McpValidationException.parameterInvalid(
+                                "status",
+                                statusFilter,
+                                "Invalid status value. Valid values: SUCCESS, FAILED"
+                        );
                     }
                 } else {
                     // 获取所有文档
                     List<DocumentService.DocumentInfo> docs = documentService.listDocuments();
                     log.info("文档列表获取成功：count={}", docs.size());
-                    return docs;
+                    return new RagListDocsResponse(true, "Success", docs);
                 }
 
+            } catch (McpException e) {
+                log.error("ragListDocs failed: {}", e.getMessage());
+                McpErrorResponse errorResponse = McpErrorResponse.fromException(e);
+                return new RagListDocsResponse(
+                        false,
+                        String.format("[%s] %s", errorResponse.errorCode(), errorResponse.message()),
+                        List.of()
+                );
             } catch (Exception e) {
-                log.error("ragListDocs failed", e);
-                return List.of();  // 返回空列表，不抛异常
+                log.error("ragListDocs failed with unexpected error", e);
+                McpErrorResponse errorResponse = McpErrorResponse.fromException(e);
+                return new RagListDocsResponse(
+                        false,
+                        String.format("[%s] %s", errorResponse.errorCode(), errorResponse.message()),
+                        List.of()
+                );
             }
         };
     }
@@ -274,12 +329,7 @@ public class RagMcpTools {
 
                 // 参数验证
                 if (idOrPath == null || idOrPath.trim().isEmpty()) {
-                    log.warn("ragDeleteDoc 参数无效：idOrPath 为空");
-                    return new RagDeleteDocResponse(
-                            false,
-                            "Invalid parameter: idOrPath cannot be empty",
-                            idOrPath
-                    );
+                    throw McpValidationException.parameterRequired("idOrPath");
                 }
 
                 log.info("MCP Tool 调用: ragDeleteDoc, idOrPath={}", idOrPath);
@@ -295,8 +345,17 @@ public class RagMcpTools {
                         idOrPath
                 );
 
+            } catch (McpException e) {
+                log.error("ragDeleteDoc failed: {}", e.getMessage());
+                McpErrorResponse errorResponse = McpErrorResponse.fromException(e);
+
+                return new RagDeleteDocResponse(
+                        false,
+                        String.format("[%s] %s", errorResponse.errorCode(), errorResponse.message()),
+                        request.idOrPath()
+                );
             } catch (Exception e) {
-                log.error("ragDeleteDoc failed: idOrPath={}", request.idOrPath(), e);
+                log.error("ragDeleteDoc failed with unexpected error: idOrPath={}", request.idOrPath(), e);
 
                 return new RagDeleteDocResponse(
                         false,
