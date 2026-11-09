@@ -12,11 +12,11 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 27% (3/11 子任务) |
-| **最近完成** | F-003 MCP Server 启动器 (2026-11-09 10:50) |
-| **下一任务** | F-004 实现 rag_query Tool |
-| **预计完成** | 2026-11-10（预计 8 小时） |
-| **当前状态** | ⏸️ 暂停（文档重构完成） |
+| **总体进度** | 36% (4/11 子任务) |
+| **最近完成** | F-004 实现 ragQuery Tool (2026-11-09 13:55) |
+| **下一任务** | F-005 实现 rag_ingest Tool |
+| **预计完成** | 2026-11-10（预计 6 小时） |
+| **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
 
@@ -35,10 +35,10 @@
 | F-001 | 验证 MCP SDK 依赖 | pom.xml | BackendDev | ✅ 完成 | 编译通过 |
 | F-002 | 创建 McpConfig 配置类 | config/McpConfig.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-003 | 实现 McpServerRunner | mcp/McpServerRunner.java | BackendDev | ✅ 完成 | 验证+修复 |
-| F-004 | 实现 rag_query Tool | mcp/tools/RagQueryTool.java | BackendDev | ⏳ 待开始 | - |
-| F-005 | 实现 rag_ingest Tool | mcp/tools/RagIngestTool.java | BackendDev | ⏳ 待开始 | - |
-| F-006 | 实现 rag_list_docs Tool | mcp/tools/RagListDocsTool.java | BackendDev | ⏳ 待开始 | - |
-| F-007 | 实现 rag_delete_doc Tool | mcp/tools/RagDeleteDocTool.java | BackendDev | ⏳ 待开始 | - |
+| F-004 | 实现 ragQuery Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 重构为Spring AI MCP |
+| F-005 | 实现 rag_ingest Tool | mcp/RagMcpTools.java | BackendDev | 📝 进行中 | - |
+| F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
+| F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
 | F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | BackendDev | ⏳ 待开始 | - |
 | F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ⏳ 待开始 | - |
 | F-010 | 编写 MCP 集成测试 | test/.../mcp/ | BackendDev | ⏳ 待开始 | - |
@@ -46,21 +46,51 @@
 
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
-- ⏳ **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 未开始
+- 📝 **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 进行中（1/4 完成）
 - ⏳ **里程碑 3**: 集成与测试（F-008 ~ F-011）- 未开始
 
 ---
 
-## ⏸️ 暂停/恢复记录
+## 📜 开发历史
 
 <details>
-<summary>📌 最近一次暂停（点击展开）</summary>
+<summary><b>📅 2026-11-09 13:55 - F-004 完成（重大重构）</b></summary>
 
-**暂停时间**: 2026-11-09 11:30  
+**任务**: 实现 ragQuery Tool  
+**负责人**: BackendDev  
+**结果**: ✅ 完成（重构为 Spring AI MCP 框架）
+
+**工作内容**:
+- 🔄 重大架构变更：从底层 MCP SDK 切换到 Spring AI MCP
+- ⬆️ 依赖升级：Spring Boot 3.2.1 → 3.4.1, Spring AI 1.0.0-M3 → 1.0.0
+- ➕ 添加：`spring-ai-starter-mcp-server-webmvc:1.0.0`
+- ➖ 删除：底层 MCP SDK 及旧配置类（5个文件）
+- ✅ 创建：`RagMcpTools.java` - 使用 Spring AI Function Calling
+- ✅ 实现：`ragQuery` Tool（查询知识库，支持 topK 和 rerank）
+- 📝 更新：`application.yaml` - Spring AI MCP Server 配置
+- 🐛 修复：Lombok 注解处理失效（版本冲突导致）
+- ⏱️ 耗时：约 3 小时（大部分时间在调试依赖）
+- 📦 提交：commit 604b968
+
+**验收**:
+- ✅ 编译成功
+- ✅ 应用启动成功
+- ✅ MCP Server 已启用
+- ✅ ragQuery Tool 已注册
+- ⚠️ MCP 协议测试：推迟到项目完成后
+
+**技术难点**:
+- 版本冲突：Spring AI MCP 1.0.0 需要 Spring Boot 3.4+ 和 Spring AI 1.0.0
+- Lombok 失效：实现接口时触发注解处理器冲突
+- YAML 配置：重复键导致启动失败
+
+</details>
+
+<details>
+<summary><b>📅 2026-11-09 11:30 - 暂停（文档重构）</b></summary>
+
 **暂停原因**: 文档重构、团队配置持久化  
 **当前状态**: F-003 已完成并提交，基础设施就绪  
-**下次恢复**: 从 F-004 开始（实现 rag_query Tool）  
-**准备工作**: 无（可直接开始）
 
 **已完成工作**：
 - ✅ 重构 PROGRESS.md（新结构）
@@ -68,6 +98,21 @@
 - ✅ 创建 .claude/team-config.md（团队配置）
 - ✅ 删除临时文档（T002/T003 实现报告）
 - ✅ 提交 F-003 代码
+
+</details>
+
+---
+
+## ⏸️ 暂停/恢复记录
+
+<details>
+<summary>📌 当前状态（点击展开）</summary>
+
+**当前时间**: 2026-11-09 14:10  
+**当前状态**: ▶️ 进行中（团队协作模式）  
+**当前任务**: F-005 实现 rag_ingest Tool  
+**负责人**: BackendDev（待接收任务）  
+**准备工作**: TaskArchitect 正在拆解任务
 
 </details>
 

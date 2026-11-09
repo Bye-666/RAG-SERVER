@@ -1,0 +1,5 @@
+启动 RAG-SERVER 开发团队：
+- 阅读 .claude/team-config.md 了解团队规则
+- 阅读 .claude/agents/task-architect.md 了解你的职责
+- 阅读 PROGRESS.md 了解当前进度
+- 以 TaskArchitect 身份开始工作

@@ -1,10 +1,43 @@
 # RAG-SERVER
 
-基于 Spring Boot 3.2 和 Spring AI 1.0.0-M3 的企业级 RAG（检索增强生成）框架
+基于 Spring Boot 3.4 和 Spring AI 1.0.0 的企业级 RAG（检索增强生成）框架
 
 [![Java](https://img.shields.io/badge/Java-17+-orange.svg)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+## 🤖 Claude Code 开发团队
+
+<details>
+<summary><b>📋 点击查看：启动 3 人协作开发模式</b></summary>
+
+本项目使用 **Agent Teams** 模式开发。在新会话中复制粘贴以下内容启动团队：
+
+```
+启动 RAG-SERVER 开发团队：
+- 阅读 .claude/team-config.md 了解团队规则
+- 阅读 .claude/agents/task-architect.md 了解你的职责
+- 阅读 PROGRESS.md 了解当前进度
+- 以 TaskArchitect 身份开始工作
+```
+
+**也可以直接复制**: `.claude/TEAM_PROMPT.txt`
+
+**团队配置**：
+- `.claude/team-config.md` - 团队协作规则和流程
+- `.claude/agents/task-architect.md` - TaskArchitect 职责定义
+- `.claude/agents/backend-dev.md` - BackendDev 职责定义
+- `.claude/agents/code-reviewer.md` - CodeReviewer 职责定义
+
+**状态追踪**：
+- `PROGRESS.md` - 开发进度看板（最重要）
+- `docs/TECH_NOTES.md` - 技术难点记录
+
+</details>
+
+---
 
 ## ✨ 核心特性
 
@@ -36,8 +69,8 @@
 
 | 类别 | 技术 | 版本 | 用途 |
 |-----|------|------|------|
-| **框架** | Spring Boot | 3.2.1 | 服务框架、依赖注入、配置管理 |
-| **AI 抽象** | Spring AI | 1.0.0-M3 | ChatClient/EmbeddingClient 统一接口 |
+| **框架** | Spring Boot | 3.4.1 | 服务框架、依赖注入、配置管理 |
+| **AI 抽象** | Spring AI | 1.0.0 | ChatClient/EmbeddingClient + MCP Server |
 | **LLM** | 阿里云 DashScope | qwen3.7-flash | 对话生成、文本理解 |
 | **Embedding** | DashScope Embedding | qwen3.7-text-embedding | 文本向量化（1024 维） |
 | **向量库** | Milvus | 2.5.3 | 混合检索（Dense + Sparse） |

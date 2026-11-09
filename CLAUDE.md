@@ -2,13 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚀 快速启动开发团队
+
+**新会话启动团队协作模式**（复制粘贴以下内容）：
+
+```
+启动 RAG-SERVER 开发团队：
+- 阅读 .claude/team-config.md 了解团队规则
+- 阅读 .claude/agents/task-architect.md 了解你的职责
+- 阅读 PROGRESS.md 了解当前进度
+- 以 TaskArchitect 身份开始工作
+```
+
+**团队配置**：
+- `.claude/team-config.md` - 团队协作规则和流程
+- `.claude/agents/task-architect.md` - TaskArchitect 职责定义
+- `.claude/agents/backend-dev.md` - BackendDev 职责定义
+- `.claude/agents/code-reviewer.md` - CodeReviewer 职责定义
+- `.claude/TEAM_PROMPT.txt` - 4 行启动命令（快速复制）
+
+**状态追踪**：
+- `PROGRESS.md` - 开发进度看板（最重要）
+- `docs/TECH_NOTES.md` - 技术难点记录
+
+---
+
 ## 项目概述
 
-RAG-SERVER 是基于 Spring Boot 3.2 和 Spring AI 的企业级 RAG（检索增强生成）框架，支持混合检索（Dense向量 + Sparse BM25）和 MCP 协议集成。
+RAG-SERVER 是基于 Spring Boot 3.4 和 Spring AI 的企业级 RAG（检索增强生成）框架，支持混合检索（Dense向量 + Sparse BM25）和 MCP 协议集成。
 
 **技术栈**：
-- Spring Boot 3.2.1 (Java 17+)
-- Spring AI 1.0.0-M3（仅用于 ChatClient/EmbeddingClient 抽象）
+- Spring Boot 3.4.1 (Java 17+)
+- Spring AI 1.0.0（ChatClient/EmbeddingClient 抽象 + MCP Server）
 - 阿里云 DashScope（LLM + Embedding）
 - Milvus 2.5.3（向量数据库，支持混合检索）
 - MySQL 8.0（关系型数据库，元数据存储）

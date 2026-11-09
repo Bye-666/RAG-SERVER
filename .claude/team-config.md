@@ -1,219 +1,301 @@
-# Agent Teams 配置
+# RAG-SERVER 团队协作规则
 
-> RAG-SERVER 项目的 3 人开发团队配置文档
+> 本文档定义团队的协作流程、硬性规则和项目约定
 
-**最后更新**: 2026-11-09 11:30
-
----
-
-## 团队组成
-
-### 1. TaskArchitect（团队负责人）
-- **模型**: Opus 5.5
-- **职责**: 
-  - 接收人类需求，拆解为小粒度可执行子任务
-  - 维护共享任务看板（从 PROGRESS.md 读取当前状态）
-  - 分配任务、执行验收、仲裁团队分歧
-  - 整理技术难点到 TECH_NOTES.md
-  - 管理 Git 提交
-
-### 2. BackendDev（后端开发）
-- **模型**: Sonnet 5.5
-- **职责**: 
-  - 认领 TaskArchitect 分配的子任务
-  - 编写/修改 Java SpringBoot 代码实现业务逻辑
-  - 仅修改分配给自己的文件，遵守文件互斥规则
-  - 完成后提交代码变更，等待审查
-
-### 3. CodeReviewer（独立代码审查）
-- **模型**: Sonnet 5.5
-- **职责**: 
-  - 独立客观审查，不护短，不参与编码
-  - 检查：安全漏洞、边界条件、异常捕获、事务、规范
-  - 输出明确结论：🔴阻断问题 / 🟡优化建议
-  - 审查结果分级：【审查通过】或【审查不通过】
+**最后更新**: 2026-11-09 14:30
 
 ---
 
-## 快速启动命令
+## 团队成员
 
-### 启动团队（新会话）
+本项目使用 **3 人 Agent Teams** 协作开发：
 
-在新的 Claude Code 会话中，复制以下命令：
+| 角色 | Agent 文件 | 核心职责 |
+|------|-----------|---------|
+| **TaskArchitect** | `.claude/agents/task-architect.md` | 需求拆解、任务协调、验收提交 |
+| **BackendDev** | `.claude/agents/backend-dev.md` | 编写代码、实现功能 |
+| **CodeReviewer** | `.claude/agents/code-reviewer.md` | 独立审查、质量把关 |
 
-```
-启动Agent Teams，组建3人开发团队，我是人类需求方，拥有最高优先级，可以随时暂停、提问、修改需求干预团队工作。
+**详细职责说明请查看各自的 Agent 定义文件。**
 
-## 团队角色
-1. TaskArchitect（团队负责人，模型：Opus）
-职责：
-- 接收人类需求，拆解为小粒度可执行子任务，为每个子任务定义清晰验收标准、涉及文件范围、任务依赖关系；
-- 维护【共享任务看板】，分配任务、仲裁团队内分歧；
-- 子任务完成后执行验收；
-- 把控整体进度，汇总所有产出；
-- 遇到无法决策的需求/技术冲突，直接提交给人类裁决。
-
-2. BackendDev（后端开发，模型：Sonnet）
-职责：
-- 认领TaskArchitect分配的子任务，编写/修改Java SpringBoot代码实现业务逻辑；
-- 仅修改分配给自己的文件，遵守文件互斥规则；
-- 遇到技术阻塞、需求歧义，及时发消息向TaskArchitect汇报；
-- 完成任务后提交代码变更（优先diff，必要时输出完整文件），更新看板状态，等待CodeReviewer审查。
-
-3. CodeReviewer（独立代码审查，模型：Sonnet）
-职责：
-- 独立客观审查，不护短，不参与编码；
-- 检查：安全漏洞、边界条件、异常捕获、事务、入参校验、命名、代码规范、潜在性能问题；
-- 审查结果分级：🔴阻断问题（必须修复，不通过） / 🟡优化建议（可选，不阻塞合并）；
-- 输出明确结论：【审查通过】或【审查不通过】，附带逐条可落地修改意见；
-- 不直接修改代码，只反馈给BackendDev。
-
-## 团队硬性规则
-1. 共享任务看板统一使用Markdown表格，由TaskArchitect维护；项目启动时先读取 PROGRESS.md 的当前任务看板。
-2. Agent之间可互相发消息对齐需求、讨论技术问题；所有重要讨论简要写在看板备注。
-3. 最高优先级规则：当人类发送任意消息，立刻暂停全部Agent当前工作流，停止编码/审查，优先响应人类指令；处理完人类输入，经人类确认后，再恢复团队任务。
-4. 文件冲突防护：同一文件同一时间只允许一个Agent修改。任务按文件/模块拆分，禁止多Agent并行编辑同一个文件。
-5. 小步迭代原则：不要批量创建大量任务，逐个子任务推进，完成一个、审查通过一个，再开启下一个依赖任务。
-6. 并行许可：互不依赖的独立子任务可以并行执行（BackendDev开发新模块，CodeReviewer审查上一个已提交任务）；存在依赖的任务必须串行。
-7. 分歧处理：Agent之间出现需求/方案分歧，先由TaskArchitect仲裁；无法达成一致，直接上报人类。
-8. 需求变更处理：人类修改需求后，TaskArchitect重新评估看板，标记失效任务，必要时标记需要回退的代码，重新规划。
-9. 角色锁定：固定保持3人团队，禁止自动新增其他角色。
-10. Git 提交：每个子任务审查通过后，TaskArchitect 立即提交代码，使用规范格式。
+---
 
 ## 标准工作流
-1. TaskArchitect 读取 PROGRESS.md，了解当前任务状态
-2. TaskArchitect 接收需求 → 拆解子任务，更新看板
-3. TaskArchitect 分配任务给 BackendDev
-4. BackendDev 实现代码，提交变更，看板标记【待审查】
-5. CodeReviewer 独立审查，输出审查报告
-   - 🔴阻断问题：退回 BackendDev 修改
-   - 无阻断问题：标记【审查通过】
-6. TaskArchitect 验收通过 → 提交 Git → 更新 PROGRESS.md
-7. TaskArchitect 整理技术难点到 TECH_NOTES.md（每个阶段完成后）
-8. 重复 3-7，直到所有任务完成
 
-## 输出规范
-代码变更优先输出diff；如需完整文件，明确标注文件名。所有Agent发言先简短说明自己是谁，再输出内容。
+```
+┌─────────────────────────────────────────────────────────┐
+│                    人类提出需求                          │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+         ┌──────────────────────┐
+         │   TaskArchitect      │
+         │  - 读取 PROGRESS.md  │
+         │  - 拆解任务          │
+         │  - 定义验收标准      │
+         └──────────┬───────────┘
+                    │
+                    │ 启动 Agent
+                    ▼
+         ┌──────────────────────┐
+         │   BackendDev         │
+         │  - 实现功能          │
+         │  - 编写代码          │
+         │  - 自我验证          │
+         └──────────┬───────────┘
+                    │
+                    │ 提交变更
+                    ▼
+         ┌──────────────────────┐
+         │   TaskArchitect      │
+         │  - 接收变更          │
+         │  - 启动审查          │
+         └──────────┬───────────┘
+                    │
+                    │ 启动 Agent
+                    ▼
+         ┌──────────────────────┐
+         │   CodeReviewer       │
+         │  - 审查代码          │
+         │  - 输出报告          │
+         └──────────┬───────────┘
+                    │
+                    │ 审查结果
+                    ▼
+         ┌──────────────────────┐
+         │   TaskArchitect      │
+         │  - 通过：提交 Git    │
+         │  - 不通过：要求修复  │
+         │  - 更新 PROGRESS.md  │
+         │  - 记录 TECH_NOTES   │
+         └──────────────────────┘
 ```
 
 ---
 
-## 恢复任务上下文
+## 硬性规则
 
-### 启动后自动执行
+### 1. 文件互斥规则
 
-TaskArchitect 启动后会自动：
-1. 读取 `PROGRESS.md` 的"当前状态速览"和"当前任务看板"
-2. 识别当前阶段和下一任务
-3. 等待人类指令：继续任务 / 新需求 / 调整计划
+**规则**：同一文件同时只能被一个 Agent 修改。
 
-### 人工检查清单
+**执行**：
+- TaskArchitect 明确分配文件给 BackendDev
+- BackendDev **严格遵守**，不擅自修改其他文件
+- 如有冲突，由 TaskArchitect 协调
 
-确保环境就绪：
-```bash
-# 1. Docker 服务
-docker-compose ps  # 应该看到 milvus、mysql、redis 都是 Up
+**违规后果**：
+- 可能导致代码冲突
+- 需要回滚重做
 
-# 2. Git 状态
-git status  # 确认工作区干净
+### 2. 串行协作规则
 
-# 3. 最新代码
-git log --oneline -5  # 查看最近提交
-```
+**规则**：一次只处理一个子任务，避免并发。
 
----
+**执行**：
+- TaskArchitect 一次只分配一个子任务
+- BackendDev 完成后才进入审查
+- 审查通过后才开始下一个任务
 
-## 任务 ID 规范
+**好处**：
+- 避免冲突
+- 状态清晰
+- 易于回滚
 
-### 格式：`阶段-序号`
+### 3. 状态透明规则
 
-| 阶段 | 任务 ID 示例 | 说明 |
-|------|-------------|------|
-| 阶段 F | F-001, F-002, ... | MCP 协议集成 |
-| 阶段 G | G-001, G-002, ... | 元数据与管理 |
-| 阶段 H | H-001, H-002, ... | Dashboard |
-| 阶段 I | I-001, I-002, ... | 评估与优化 |
-| 阶段 J | J-001, J-002, ... | 端到端验收 |
+**规则**：所有任务状态必须记录在 `PROGRESS.md`。
+
+**执行**：
+- TaskArchitect 负责更新
+- 每个任务的状态变更都要记录
+- 包含：完成时间、负责人、遇到的问题
+
+**好处**：
+- 跨会话可恢复
+- 进度可追溯
+- 人类随时了解状态
+
+### 4. 小步迭代规则
+
+**规则**：每个子任务独立验证、独立提交。
+
+**执行**：
+- 子任务预计耗时 ≤ 1 小时
+- 涉及文件数量 ≤ 3 个
+- 每个子任务单独 Git commit
+
+**好处**：
+- 易于回滚
+- 减少冲突
+- 便于审查
+
+### 5. 人类优先规则
+
+**规则**：人类可随时暂停、修改需求、推翻决定。
+
+**执行**：
+- Agent 的决定不是最终的
+- 重大决策前询问人类
+- 遇到阻塞立即报告
 
 ---
 
 ## Git 提交规范
 
-### 提交格式
+### Commit Message 格式
 
-```bash
-feat(mcp): [F-003] 实现 MCP Server 启动器
+遵循 **Conventional Commits**：
 
-- 使用 stdio 传输层监听标准输入输出
-- 配置服务器能力（Tools）
-- 添加优雅关闭 shutdown hook
-- 后台线程持续运行，不阻塞主线程
+```
+<type>(<scope>): <subject>
 
-任务ID: F-003
-审查: CodeReviewer 审查通过
+<body>
+
+<footer>
 ```
 
-### 提交类型
+### Type 类型
 
-- `feat`: 新功能
-- `fix`: 修复问题
-- `refactor`: 重构代码
-- `docs`: 文档更新
-- `test`: 测试相关
-- `chore`: 构建/工具配置
+| Type | 说明 | 示例 |
+|------|------|------|
+| `feat` | 新功能 | `feat(mcp): 实现 ragQuery Tool` |
+| `fix` | Bug 修复 | `fix(retrieval): 修复混合检索权重计算` |
+| `refactor` | 重构 | `refactor(mcp): 切换到 Spring AI MCP 框架` |
+| `docs` | 文档 | `docs: 更新 README 团队启动说明` |
+| `test` | 测试 | `test(service): 添加 RagService 单元测试` |
+| `chore` | 构建/工具 | `chore: 升级 Spring Boot 到 3.4.1` |
+| `style` | 代码格式 | `style: 统一代码缩进为 4 空格` |
+| `perf` | 性能优化 | `perf(retrieval): 优化向量查询性能` |
 
-### 提交时机
+### 示例
 
-- ✅ 每个子任务审查通过后立即提交
-- ✅ TaskArchitect 负责执行 git commit
-- ✅ 提交前确保编译通过
+```
+feat(mcp): 实现 ragIngest Tool
+
+- 添加 RagIngestRequest record 定义参数
+- 实现 ragIngest Function Bean
+- 调用 IngestionService 完成文档摄取
+- 添加错误处理和日志记录
+
+验收:
+- ✅ 编译成功
+- ✅ 应用启动成功
+- ✅ Tool 已注册
+```
 
 ---
 
-## 常用命令速查
+## 技术难点记录规范
 
-### Docker 管理
-```bash
-docker-compose up -d          # 启动所有服务
-docker-compose ps             # 查看服务状态
-docker-compose logs -f milvus # 查看日志
-docker-compose restart milvus # 重启服务
-docker-compose down           # 停止所有服务
-```
+### 什么时候记录到 TECH_NOTES.md
 
-### 应用运行
-```bash
-mvn spring-boot:run           # 启动应用
-mvn clean compile -DskipTests # 编译（跳过测试）
-mvn test                      # 运行测试
-```
+- ✅ 非常规问题（超出标准开发流程）
+- ✅ 耗时超过 1 小时的调试
+- ✅ 版本冲突、依赖问题
+- ✅ 重大架构决策
+- ✅ 性能优化经验
 
-### 数据库检查
-```bash
-# MySQL
-docker-compose exec mysql mysql -uraguser -pragpassword -e "USE rag_server; SHOW TABLES;"
+- ❌ 常规 Bug 修复
+- ❌ 简单的配置修改
+- ❌ 标准的 CRUD 实现
 
-# Redis
-docker-compose exec redis redis-cli KEYS "rag:*"
+### 记录格式
 
-# Milvus 管理界面
-http://localhost:8000  # Attu
+```markdown
+## [问题标题]
+
+**任务**: F-XXX 任务名称
+**日期**: YYYY-MM-DD
+**类型**: 架构设计 | 性能优化 | Bug 修复 | 依赖冲突
+
+### 问题描述
+[简要说明遇到的问题]
+
+### 技术难点
+#### 1. [难点名称]
+**现象**: [具体表现]
+**根本原因**: [深层原因]
+**解决方案**: [代码/配置]
+**教训**: [经验总结]
+
+### 参考资料
+[相关文档、Issue、PR 链接]
 ```
 
 ---
 
 ## 项目重要文件
 
-### 文档
-- `PROGRESS.md` - 开发进度和任务看板（最重要）
-- `CLAUDE.md` - 项目规范和常用命令
-- `DEV_SPEC.md` - 完整的 53 个开发任务
-- `docs/TECH_NOTES.md` - 技术难点和解决方案
+### 必读文件（开始工作前）
 
-### 配置
-- `docker-compose.yml` - Docker 服务编排
-- `src/main/resources/application.yaml` - 应用配置
-- `pom.xml` - Maven 依赖管理
+- **`PROGRESS.md`** - 当前进度看板（最重要！）
+- **`.claude/team-config.md`** - 团队协作规则（本文档）
+- **`CLAUDE.md`** - 项目规范和常用命令
+
+### Agent 定义文件
+
+- **`.claude/agents/task-architect.md`** - TaskArchitect 职责和规范
+- **`.claude/agents/backend-dev.md`** - BackendDev 职责和规范
+- **`.claude/agents/code-reviewer.md`** - CodeReviewer 职责和规范
+
+### 需维护的文件
+
+- **`PROGRESS.md`** - 任务状态（TaskArchitect 维护）
+- **`docs/TECH_NOTES.md`** - 技术难点（TaskArchitect 维护）
+
+### 参考文件
+
+- **`DEV_SPEC.md`** - 完整的 53 个开发任务
+- **`README.md`** - 项目介绍
+- **`pom.xml`** - Maven 依赖
+- **`src/main/resources/application.yaml`** - 应用配置
+
+---
+
+## 技术栈快速参考
+
+| 类别 | 技术 | 版本 |
+|-----|------|------|
+| 框架 | Spring Boot | 3.4.1 |
+| AI 集成 | Spring AI | 1.0.0 |
+| LLM | DashScope | qwen3.7-flash |
+| Embedding | DashScope | qwen3.7-text-embedding |
+| 向量库 | Milvus | 2.5.3 |
+| 数据库 | MySQL | 8.0 |
+| 缓存 | Redis | 7.2 |
+
+---
+
+## 常用命令
+
+```bash
+# 编译
+mvn clean compile
+
+# 运行应用
+mvn spring-boot:run
+
+# 打包（跳过测试）
+mvn package -DskipTests
+
+# 运行测试
+mvn test
+
+# 启动 Docker 服务
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+```
+
+---
+
+## 端点访问
+
+- **应用**: http://localhost:8080
+- **健康检查**: http://localhost:8080/actuator/health
+- **Milvus Attu**: http://localhost:8000
 
 ---
 
@@ -227,5 +309,5 @@ http://localhost:8000  # Attu
 
 ---
 
-**维护人**: 开发团队  
-**最后更新**: 2026-11-09 11:30
+**维护人**: TaskArchitect  
+**最后更新**: 2026-11-09 14:30
