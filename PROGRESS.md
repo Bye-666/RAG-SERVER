@@ -12,10 +12,10 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 64% (7/11 子任务) |
-| **最近完成** | F-007 实现 rag_delete_doc Tool (2026-11-09 17:30) |
-| **下一任务** | F-008 创建 McpToolsProvider |
-| **预计完成** | 2026-11-09（预计 3 小时） |
+| **总体进度** | 73% (8/11 子任务) |
+| **最近完成** | F-008 跳过（Spring AI 自动注册） (2026-11-09 18:15) |
+| **下一任务** | F-009 添加 MCP 异常处理 |
+| **预计完成** | 2026-11-09（预计 2 小时） |
 | **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
@@ -39,7 +39,7 @@
 | F-005 | 实现 rag_ingest Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
-| F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | BackendDev | ⏳ 待开始 | - |
+| F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | - | ⏭️ 跳过 | Spring AI 自动注册 |
 | F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ⏳ 待开始 | - |
 | F-010 | 编写 MCP 集成测试 | test/.../mcp/ | BackendDev | ⏳ 待开始 | - |
 | F-011 | 更新项目文档 | CLAUDE.md, README.md | BackendDev | ⏳ 待开始 | - |
@@ -47,11 +47,44 @@
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
 - ✅ **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 已完成
-- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（0/4 完成）
+- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（1/4 完成）
 
 ---
 
 ## 📜 开发历史
+
+<details>
+<summary><b>📅 2026-11-09 18:15 - F-008 跳过（架构变更）</b></summary>
+
+**任务**: 创建 McpToolsProvider  
+**决策**: ⏭️ 跳过  
+**原因**: Spring AI MCP 框架提供自动注册机制
+
+**决策背景**:
+- ✅ 当前架构：Spring AI MCP 框架（spring-ai-starter-mcp-server-webmvc:1.0.0）
+- ✅ 自动注册：Spring AI AutoConfiguration 自动扫描 @Bean Function 作为 MCP Tools
+- ✅ 已实现功能：4个 Function Bean 已在 RagMcpTools.java 中定义
+- ❌ 不需要手动 Provider：会与自动配置冲突
+- ❌ 原始规范已过时：DEV_SPEC.md 基于底层 MCP SDK 设计
+
+**架构说明**:
+```
+Spring AI MCP 框架启动流程：
+1. Spring Boot 启动
+2. AutoConfiguration 扫描所有 @Bean Function<?, ?>
+3. 自动注册为 MCP Tools
+4. 启动 MCP Server（stdio 模式）
+5. 监听 MCP 协议请求
+```
+
+**影响**:
+- ✅ 简化架构：减少手动配置
+- ✅ 符合 Spring 最佳实践：Convention over Configuration
+- ✅ 易于扩展：新增 Tool 只需添加 @Bean Function
+
+**下一步**: F-009 添加 MCP 异常处理
+
+</details>
 
 <details>
 <summary><b>📅 2026-11-09 17:30 - F-007 完成（🎉 里程碑 2 完成）</b></summary>
