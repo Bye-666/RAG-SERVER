@@ -2,6 +2,7 @@ package com.ragserver.mcp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,14 @@ public class RagMcpTools {
             String fileName,
             Integer chunksProcessed,
             Long durationMs
+    ) {}
+
+    /**
+     * RAG List Docs 请求参数
+     */
+    public record RagListDocsRequest(
+            @JsonPropertyDescription("Filter by status: SUCCESS, FAILED, or null for all (default: all)")
+            String status
     ) {}
 
     /**
@@ -182,6 +191,50 @@ public class RagMcpTools {
                         0,
                         durationMs
                 );
+            }
+        };
+    }
+
+    /**
+     * 注册 rag_list_docs Tool
+     *
+     * @param documentService 文档服务
+     * @return Function
+     */
+    @Bean
+    @Description("List all documents in the RAG knowledge base")
+    public Function<RagListDocsRequest, List<DocumentService.DocumentInfo>> ragListDocs(DocumentService documentService) {
+        log.info("注册 MCP Tool: ragListDocs");
+
+        return request -> {
+            try {
+                String statusFilter = (request != null) ? request.status() : null;
+
+                log.info("MCP Tool 调用: ragListDocs, statusFilter={}", statusFilter);
+
+                // 根据状态过滤文档
+                if (statusFilter != null && !statusFilter.trim().isEmpty()) {
+                    try {
+                        var status = com.ragserver.entity.IngestionHistory.IngestionStatus.valueOf(statusFilter.toUpperCase());
+                        List<DocumentService.DocumentInfo> docs = documentService.listDocumentsByStatus(status);
+                        log.info("文档列表获取成功：status={}, count={}", statusFilter, docs.size());
+                        return docs;
+                    } catch (IllegalArgumentException e) {
+                        log.warn("无效的状态过滤器：{}, 返回所有文档", statusFilter);
+                        List<DocumentService.DocumentInfo> docs = documentService.listDocuments();
+                        log.info("文档列表获取成功：count={}", docs.size());
+                        return docs;
+                    }
+                } else {
+                    // 获取所有文档
+                    List<DocumentService.DocumentInfo> docs = documentService.listDocuments();
+                    log.info("文档列表获取成功：count={}", docs.size());
+                    return docs;
+                }
+
+            } catch (Exception e) {
+                log.error("ragListDocs failed", e);
+                return List.of();  // 返回空列表，不抛异常
             }
         };
     }
