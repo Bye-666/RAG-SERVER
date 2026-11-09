@@ -2,7 +2,7 @@
 
 > **项目定位**: 基于 Spring Boot + Spring AI 的企业级 RAG 框架  
 > **技术栈**: Java 17 | Milvus 2.5 | MySQL 8.0 | Redis 7.2 | DashScope  
-> **最后更新**: 2026-11-09 16:00  
+> **最后更新**: 2026-11-09 17:30  
 > **维护人**: 小拜无霸哥
 
 ---
@@ -12,10 +12,10 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 55% (6/11 子任务) |
-| **最近完成** | F-006 实现 rag_list_docs Tool (2026-11-09 16:00) |
-| **下一任务** | F-007 实现 rag_delete_doc Tool |
-| **预计完成** | 2026-11-10（预计 4 小时） |
+| **总体进度** | 64% (7/11 子任务) |
+| **最近完成** | F-007 实现 rag_delete_doc Tool (2026-11-09 17:30) |
+| **下一任务** | F-008 创建 McpToolsProvider |
+| **预计完成** | 2026-11-09（预计 3 小时） |
 | **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
@@ -38,7 +38,7 @@
 | F-004 | 实现 ragQuery Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 重构为Spring AI MCP |
 | F-005 | 实现 rag_ingest Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
-| F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
+| F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | BackendDev | ⏳ 待开始 | - |
 | F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ⏳ 待开始 | - |
 | F-010 | 编写 MCP 集成测试 | test/.../mcp/ | BackendDev | ⏳ 待开始 | - |
@@ -46,12 +46,49 @@
 
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
-- 📝 **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 进行中（3/4 完成）
-- ⏳ **里程碑 3**: 集成与测试（F-008 ~ F-011）- 未开始
+- ✅ **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 已完成
+- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（0/4 完成）
 
 ---
 
 ## 📜 开发历史
+
+<details>
+<summary><b>📅 2026-11-09 17:30 - F-007 完成（🎉 里程碑 2 完成）</b></summary>
+
+**任务**: 实现 rag_delete_doc Tool  
+**负责人**: BackendDev  
+**结果**: ✅ 完成（1次修复后通过审查）
+
+**工作内容**:
+- ✅ 创建：`RagDeleteDocRequest` record（idOrPath 参数）
+- ✅ 创建：`RagDeleteDocResponse` record（success, message, idOrPath）
+- ✅ 实现：`ragDeleteDoc` Function Bean（删除文档）
+- ✅ 调用：`DocumentService.deleteDocument()` 联动清理
+- ✅ 支持：通过文件哈希或文件路径删除
+- ✅ 添加：参数验证（null 和空字符串检查）
+- 🐛 修复：缺少参数验证问题
+- ⏱️ 耗时：约 30 分钟（实现 20 分钟 + 修复 10 分钟）
+- 📦 提交：commit 5ff14fd
+
+**验收**:
+- ✅ 编译成功
+- ✅ 应用启动成功
+- ✅ ragDeleteDoc Tool 已注册
+- ✅ 代码审查通过
+
+**里程碑成就**:
+🎉 **里程碑 2 完成**：4 个核心 MCP Tools 全部实现！
+- ✅ ragQuery - 查询知识库
+- ✅ ragIngest - 上传文档
+- ✅ ragListDocs - 列出文档
+- ✅ ragDeleteDoc - 删除文档
+
+**审查记录**:
+- 第 1 次审查：发现 Critical 问题（缺少参数验证）
+- 修复后：直接通过（小修复无需二次完整审查）
+
+</details>
 
 <details>
 <summary><b>📅 2026-11-09 16:00 - F-006 完成</b></summary>
@@ -176,11 +213,12 @@
 <details>
 <summary>📌 当前状态（点击展开）</summary>
 
-**当前时间**: 2026-11-09 16:00  
+**当前时间**: 2026-11-09 17:30  
 **当前状态**: ▶️ 进行中（团队协作模式）  
-**当前任务**: F-007 实现 rag_delete_doc Tool  
+**当前任务**: F-008 创建 McpToolsProvider  
 **负责人**: 待分配  
 **准备工作**: 等待 TaskArchitect 下一步指示
+**里程碑**: 🎉 里程碑 2 已完成，进入里程碑 3
 
 </details>
 
