@@ -147,7 +147,11 @@ class RagControllerTest {
         String question = "什么是RAG？";
         String answer = "RAG是检索增强生成技术。";
 
-        when(ragService.query(eq(question), eq(5), eq(false))).thenReturn(answer);
+        RagService.QueryResult queryResult = new RagService.QueryResult();
+        queryResult.setAnswer(answer);
+        queryResult.setTotalDurationMs(1500L);
+
+        when(ragService.query(eq(question), eq(5), eq(false))).thenReturn(queryResult);
 
         // When & Then: 调用API
         mockMvc.perform(post("/api/query")

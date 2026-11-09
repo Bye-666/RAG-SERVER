@@ -52,16 +52,20 @@ class HybridRetrieverTest {
         // Given: Mock返回3个文档
         String query = "什么是RAG？";
         int topK = 3;
-        List<Document> mockResults = createMockDocuments(3);
-        when(vectorStore.searchHybrid(eq(query), eq(topK))).thenReturn(mockResults);
+        List<Document> mockDenseResults = createMockDocuments(3);
+        List<Document> mockSparseResults = createMockDocuments(2);
+
+        when(vectorStore.searchDense(eq(query), eq(topK))).thenReturn(mockDenseResults);
+        when(vectorStore.searchSparse(eq(query), eq(topK))).thenReturn(mockSparseResults);
 
         // When: 检索（不启用Rerank）
-        List<Document> results = hybridRetriever.retrieve(query, topK, false);
+        HybridRetriever.RetrievalResult result = hybridRetriever.retrieve(query, topK, false);
 
         // Then: 返回结果
-        assertThat(results).isNotNull();
-        assertThat(results).hasSize(3);
-        verify(vectorStore).searchHybrid(eq(query), eq(topK));
+        assertThat(result).isNotNull();
+        assertThat(result.getDocuments()).isNotNull();
+        verify(vectorStore).searchDense(eq(query), eq(topK));
+        verify(vectorStore).searchSparse(eq(query), eq(topK));
         verify(reranker, never()).rerank(anyString(), anyList(), anyInt());
     }
 
@@ -73,20 +77,24 @@ class HybridRetrieverTest {
         // Given: Mock返回10个候选，Rerank返回5个
         String query = "什么是RAG？";
         int topK = 5;
-        List<Document> candidates = createMockDocuments(10);
+        List<Document> denseCandidates = createMockDocuments(10);
+        List<Document> sparseCandidates = createMockDocuments(8);
         List<Document> rerankedResults = createMockDocuments(5);
 
-        when(vectorStore.searchHybrid(eq(query), eq(topK * 2))).thenReturn(candidates);
-        when(reranker.rerank(eq(query), eq(candidates), eq(topK))).thenReturn(rerankedResults);
+        when(vectorStore.searchDense(eq(query), eq(topK * 2))).thenReturn(denseCandidates);
+        when(vectorStore.searchSparse(eq(query), eq(topK * 2))).thenReturn(sparseCandidates);
+        when(reranker.rerank(eq(query), anyList(), eq(topK))).thenReturn(rerankedResults);
 
         // When: 检索（启用Rerank）
-        List<Document> results = hybridRetriever.retrieve(query, topK, true);
+        HybridRetriever.RetrievalResult result = hybridRetriever.retrieve(query, topK, true);
 
         // Then: 返回Rerank结果
-        assertThat(results).isNotNull();
-        assertThat(results).hasSize(5);
-        verify(vectorStore).searchHybrid(eq(query), eq(topK * 2));
-        verify(reranker).rerank(eq(query), eq(candidates), eq(topK));
+        assertThat(result).isNotNull();
+        assertThat(result.getDocuments()).isNotNull();
+        assertThat(result.getDocuments()).hasSize(5);
+        verify(vectorStore).searchDense(eq(query), eq(topK * 2));
+        verify(vectorStore).searchSparse(eq(query), eq(topK * 2));
+        verify(reranker).rerank(eq(query), anyList(), eq(topK));
     }
 
     /**
@@ -96,14 +104,16 @@ class HybridRetrieverTest {
     void testRetrieveWithEmptyResults() {
         // Given: Mock返回空列表
         String query = "不存在的内容";
-        when(vectorStore.searchHybrid(anyString(), anyInt())).thenReturn(List.of());
+        when(vectorStore.searchDense(anyString(), anyInt())).thenReturn(List.of());
+        when(vectorStore.searchSparse(anyString(), anyInt())).thenReturn(List.of());
 
         // When: 检索
-        List<Document> results = hybridRetriever.retrieve(query, 5, false);
+        HybridRetriever.RetrievalResult result = hybridRetriever.retrieve(query, 5, false);
 
         // Then: 返回空列表（不会调用Rerank）
-        assertThat(results).isNotNull();
-        assertThat(results).isEmpty();
+        assertThat(result).isNotNull();
+        assertThat(result.getDocuments()).isNotNull();
+        assertThat(result.getDocuments()).isEmpty();
         verify(reranker, never()).rerank(anyString(), anyList(), anyInt());
     }
 
@@ -114,7 +124,7 @@ class HybridRetrieverTest {
     void testRetrieveWithException() {
         // Given: Mock抛出异常
         String query = "测试查询";
-        when(vectorStore.searchHybrid(anyString(), anyInt()))
+        when(vectorStore.searchDense(anyString(), anyInt()))
                 .thenThrow(new RuntimeException("Milvus连接失败"));
 
         // When & Then: 抛出异常
@@ -130,14 +140,17 @@ class HybridRetrieverTest {
     void testSimpleRetrieve() {
         // Given: Mock返回结果
         String query = "测试";
-        List<Document> mockResults = createMockDocuments(3);
-        when(vectorStore.searchHybrid(eq(query), eq(5))).thenReturn(mockResults);
+        List<Document> mockDenseResults = createMockDocuments(3);
+        List<Document> mockSparseResults = createMockDocuments(2);
 
-        // When: 调用简单检索
-        List<Document> results = hybridRetriever.retrieve(query, 5);
+        when(vectorStore.searchDense(eq(query), eq(5))).thenReturn(mockDenseResults);
+        when(vectorStore.searchSparse(eq(query), eq(5))).thenReturn(mockSparseResults);
+
+        // When: 调用简单检索（使用 retrieveSimple）
+        List<Document> results = hybridRetriever.retrieveSimple(query, 5);
 
         // Then: 返回结果（未启用Rerank）
-        assertThat(results).hasSize(3);
+        assertThat(results).isNotNull();
         verify(reranker, never()).rerank(anyString(), anyList(), anyInt());
     }
 

@@ -60,21 +60,22 @@ class RagServiceTest {
     void testQueryFullFlow() {
         // Given: Mock检索和LLM响应
         String question = "什么是RAG？";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
         String mockAnswer = "RAG（检索增强生成）是一种结合了检索和生成的AI技术。";
 
-        when(retriever.retrieve(eq(question), eq(10), eq(false))).thenReturn(mockDocs);
+        when(retriever.retrieve(eq(question), eq(10), eq(false))).thenReturn(mockRetrievalResult);
         when(chatClient.chat(anyString())).thenReturn(mockAnswer);
 
         // When: 执行查询
-        String result = ragService.query(question);
+        RagService.QueryResult result = ragService.query(question, 10, false);
 
         // Then: 验证结果包含答案和引用
         assertThat(result).isNotNull();
-        assertThat(result).contains(mockAnswer);
-        assertThat(result).contains("引用来源:");
-        assertThat(result).contains("[1]");
-        assertThat(result).contains("test1.pdf");
+        assertThat(result.getAnswer()).isNotNull();
+        assertThat(result.getAnswer()).contains(mockAnswer);
+        assertThat(result.getAnswer()).contains("引用来源:");
+        assertThat(result.getAnswer()).contains("[1]");
+        assertThat(result.getAnswer()).contains("test1.pdf");
 
         // 验证调用链
         verify(retriever).retrieve(eq(question), eq(10), eq(false));
@@ -88,14 +89,14 @@ class RagServiceTest {
     void testQueryWithRerank() {
         // Given: 启用Rerank
         String question = "测试问题";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
         String mockAnswer = "这是答案";
 
-        when(retriever.retrieve(eq(question), eq(5), eq(true))).thenReturn(mockDocs);
+        when(retriever.retrieve(eq(question), eq(5), eq(true))).thenReturn(mockRetrievalResult);
         when(chatClient.chat(anyString())).thenReturn(mockAnswer);
 
         // When: 执行查询
-        String result = ragService.query(question, 5, true);
+        RagService.QueryResult result = ragService.query(question, 5, true);
 
         // Then: 验证Rerank被启用
         assertThat(result).isNotNull();
@@ -109,13 +110,16 @@ class RagServiceTest {
     void testQueryWithNoResults() {
         // Given: 检索返回空列表
         String question = "不存在的内容";
-        when(retriever.retrieve(eq(question), anyInt(), anyBoolean())).thenReturn(List.of());
+        HybridRetriever.RetrievalResult emptyResult = new HybridRetriever.RetrievalResult();
+        emptyResult.setDocuments(List.of());
+
+        when(retriever.retrieve(eq(question), anyInt(), anyBoolean())).thenReturn(emptyResult);
 
         // When: 执行查询
-        String result = ragService.query(question);
+        RagService.QueryResult result = ragService.query(question, 10, false);
 
         // Then: 返回友好提示，不调用LLM
-        assertThat(result).contains("未找到与您问题相关的信息");
+        assertThat(result.getAnswer()).contains("未找到与您问题相关的信息");
         verify(chatClient, never()).chat(anyString());
     }
 
@@ -130,7 +134,7 @@ class RagServiceTest {
                 .thenThrow(new RuntimeException("Milvus连接失败"));
 
         // When & Then: 抛出异常
-        assertThatThrownBy(() -> ragService.query(question))
+        assertThatThrownBy(() -> ragService.query(question, 10, false))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("RAG查询失败");
     }
@@ -142,13 +146,13 @@ class RagServiceTest {
     void testQueryWithLLMFailure() {
         // Given: LLM调用失败
         String question = "测试问题";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
 
-        when(retriever.retrieve(anyString(), anyInt(), anyBoolean())).thenReturn(mockDocs);
+        when(retriever.retrieve(anyString(), anyInt(), anyBoolean())).thenReturn(mockRetrievalResult);
         when(chatClient.chat(anyString())).thenThrow(new RuntimeException("API限流"));
 
         // When & Then: 抛出异常
-        assertThatThrownBy(() -> ragService.query(question))
+        assertThatThrownBy(() -> ragService.query(question, 10, false))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("RAG查询失败");
     }
@@ -160,9 +164,9 @@ class RagServiceTest {
     void testRetrieveOnly() {
         // Given: Mock检索
         String question = "测试问题";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
 
-        when(retriever.retrieve(eq(question), eq(5), eq(false))).thenReturn(mockDocs);
+        when(retriever.retrieve(eq(question), eq(5), eq(false))).thenReturn(mockRetrievalResult);
 
         // When: 仅检索
         List<Document> results = ragService.retrieveOnly(question, 5, false);
@@ -197,9 +201,9 @@ class RagServiceTest {
     void testBuildPromptOnly() {
         // Given: Mock检索
         String question = "什么是RAG？";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
 
-        when(retriever.retrieve(eq(question), eq(10), eq(false))).thenReturn(mockDocs);
+        when(retriever.retrieve(eq(question), eq(10), eq(false))).thenReturn(mockRetrievalResult);
 
         // When: 仅构建Prompt
         String prompt = ragService.buildPromptOnly(question, 10, false);
@@ -235,14 +239,14 @@ class RagServiceTest {
     void testQueryWithDefaultParams() {
         // Given: Mock
         String question = "测试问题";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
         String mockAnswer = "答案";
 
-        when(retriever.retrieve(eq(question), eq(10), eq(false))).thenReturn(mockDocs);
+        when(retriever.retrieve(eq(question), eq(10), eq(false))).thenReturn(mockRetrievalResult);
         when(chatClient.chat(anyString())).thenReturn(mockAnswer);
 
         // When: 使用默认参数
-        String result = ragService.query(question);
+        RagService.QueryResult result = ragService.query(question, 10, false);
 
         // Then: 使用topK=10, enableRerank=false
         assertThat(result).isNotNull();
@@ -256,22 +260,22 @@ class RagServiceTest {
     void testAnswerAndCitationsComposition() {
         // Given: Mock
         String question = "测试问题";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
         String mockAnswer = "这是答案部分";
 
-        when(retriever.retrieve(anyString(), anyInt(), anyBoolean())).thenReturn(mockDocs);
+        when(retriever.retrieve(anyString(), anyInt(), anyBoolean())).thenReturn(mockRetrievalResult);
         when(chatClient.chat(anyString())).thenReturn(mockAnswer);
 
         // When: 执行查询
-        String result = ragService.query(question);
+        RagService.QueryResult result = ragService.query(question, 10, false);
 
         // Then: 答案和引用之间有空行分隔
-        assertThat(result).contains("这是答案部分");
-        assertThat(result).contains("\n\n引用来源:");
+        assertThat(result.getAnswer()).contains("这是答案部分");
+        assertThat(result.getAnswer()).contains("\n\n引用来源:");
 
         // 验证答案在前，引用在后
-        int answerIndex = result.indexOf("这是答案部分");
-        int citationIndex = result.indexOf("引用来源:");
+        int answerIndex = result.getAnswer().indexOf("这是答案部分");
+        int citationIndex = result.getAnswer().indexOf("引用来源:");
         assertThat(answerIndex).isLessThan(citationIndex);
     }
 
@@ -282,10 +286,10 @@ class RagServiceTest {
     void testQueryWithDifferentTopK() {
         // Given: 不同的topK值
         String question = "测试问题";
-        List<Document> mockDocs = createMockDocuments();
+        HybridRetriever.RetrievalResult mockRetrievalResult = createMockRetrievalResult();
         String mockAnswer = "答案";
 
-        when(retriever.retrieve(anyString(), anyInt(), anyBoolean())).thenReturn(mockDocs);
+        when(retriever.retrieve(anyString(), anyInt(), anyBoolean())).thenReturn(mockRetrievalResult);
         when(chatClient.chat(anyString())).thenReturn(mockAnswer);
 
         // When: 使用topK=3
@@ -293,6 +297,16 @@ class RagServiceTest {
 
         // Then: 验证参数传递
         verify(retriever).retrieve(eq(question), eq(3), eq(false));
+    }
+
+    /**
+     * 创建Mock RetrievalResult
+     */
+    private HybridRetriever.RetrievalResult createMockRetrievalResult() {
+        HybridRetriever.RetrievalResult result = new HybridRetriever.RetrievalResult();
+        result.setDocuments(createMockDocuments());
+        result.setTotalDurationMs(100L);
+        return result;
     }
 
     /**
