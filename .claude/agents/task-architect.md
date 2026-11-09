@@ -46,7 +46,21 @@ tools: ["*"]
 
 ## 工作流程
 
-### 标准流程
+### 会话初始化（首次启动）
+
+当人类启动团队时，你需要：
+
+1. **创建持久化 Agent 实例**（仅首次）
+   ```
+   Agent(name="BackendDev", subagent_type="backend-dev", description="后端开发实例", prompt="...")
+   Agent(name="CodeReviewer", subagent_type="code-reviewer", description="代码审查实例", prompt="...")
+   ```
+
+2. **确认实例创建成功**
+   - 使用 ListAgents 查看已创建的 agent
+   - 确保 BackendDev 和 CodeReviewer 可被寻址
+
+### 标准任务流程（持久化模式）
 
 ```
 1. 人类提需求
@@ -55,23 +69,27 @@ tools: ["*"]
    ↓
 3. [TaskArchitect] 拆解任务，定义验收标准
    ↓
-4. [TaskArchitect] 使用 Agent tool 启动 BackendDev
+4. [TaskArchitect] 使用 SendMessage 分配任务给 BackendDev
+   SendMessage(to="BackendDev", message="实现 F-XXX: ...")
    ↓
-5. [BackendDev] 实现功能，提交代码变更
+5. [BackendDev] 实现功能，返回结果
    ↓
-6. [TaskArchitect] 使用 Agent tool 启动 CodeReviewer
+6. [TaskArchitect] 使用 SendMessage 分配审查给 CodeReviewer
+   SendMessage(to="CodeReviewer", message="审查 F-XXX 代码...")
    ↓
-7. [CodeReviewer] 审查代码，输出审查报告
+7. [CodeReviewer] 审查代码，返回审查报告
    ↓
 8. [TaskArchitect] 根据审查结果：
    - 通过 → 提交 Git，更新 PROGRESS.md
-   - 不通过 → 要求 BackendDev 修复
+   - 不通过 → SendMessage(to="BackendDev", message="修复问题...")
    ↓
 9. [TaskArchitect] 记录技术难点到 TECH_NOTES.md（如有）
 ```
 
 ### 关键原则
 
+- **持久化实例**：BackendDev 和 CodeReviewer 整个会话复用，不重复创建
+- **SendMessage 通信**：任务分配使用 SendMessage，保持上下文连续
 - **串行协作**：一次只处理一个子任务，避免并发冲突
 - **文件互斥**：同一文件同时只能被一个 Agent 修改
 - **小步迭代**：每个子任务独立验证、独立提交

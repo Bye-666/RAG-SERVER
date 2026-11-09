@@ -2,25 +2,42 @@
 
 > 本文档定义团队的协作流程、硬性规则和项目约定
 
-**最后更新**: 2026-11-09 14:30
+**最后更新**: 2026-11-09 18:00
+
+---
+
+## 🚀 快速启动（持久化模式）
+
+**启动命令**（复制粘贴到新会话）：
+
+```
+启动 RAG-SERVER 开发团队：
+- 阅读 .claude/team-config.md 了解团队规则
+- 阅读 .claude/agents/task-architect.md 了解你的职责
+- 阅读 PROGRESS.md 了解当前进度
+- 以 TaskArchitect 身份开始工作
+```
 
 ---
 
 ## 团队成员
 
-本项目使用 **3 人 Agent Teams** 协作开发：
+本项目使用 **3 人 Agent Teams** 协作开发（持久化实例）：
 
-| 角色 | Agent 文件 | 核心职责 |
-|------|-----------|---------|
-| **TaskArchitect** | `.claude/agents/task-architect.md` | 需求拆解、任务协调、验收提交 |
-| **BackendDev** | `.claude/agents/backend-dev.md` | 编写代码、实现功能 |
-| **CodeReviewer** | `.claude/agents/code-reviewer.md` | 独立审查、质量把关 |
+| 角色 | Agent 文件 | 实例模式 | 核心职责 |
+|------|-----------|---------|---------|
+| **TaskArchitect** | `.claude/agents/task-architect.md` | 主会话 | 需求拆解、任务协调、验收提交 |
+| **BackendDev** | `.claude/agents/backend-dev.md` | 持久化 | 编写代码、实现功能 |
+| **CodeReviewer** | `.claude/agents/code-reviewer.md` | 持久化 | 独立审查、质量把关 |
 
-**详细职责说明请查看各自的 Agent 定义文件。**
+**持久化模式说明**：
+- BackendDev 和 CodeReviewer 在会话开始时创建一次
+- 整个会话期间复用同一实例（保持上下文连续性）
+- 通过 SendMessage 通信（不重复创建新实例）
 
 ---
 
-## 标准工作流
+## 标准工作流（持久化模式）
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -35,27 +52,27 @@
          │  - 定义验收标准      │
          └──────────┬───────────┘
                     │
-                    │ 启动 Agent
+                    │ SendMessage
                     ▼
          ┌──────────────────────┐
-         │   BackendDev         │
+         │   BackendDev         │ ← 持久实例（复用）
          │  - 实现功能          │
          │  - 编写代码          │
          │  - 自我验证          │
          └──────────┬───────────┘
                     │
-                    │ 提交变更
+                    │ 返回结果
                     ▼
          ┌──────────────────────┐
          │   TaskArchitect      │
          │  - 接收变更          │
-         │  - 启动审查          │
+         │  - 分配审查          │
          └──────────┬───────────┘
                     │
-                    │ 启动 Agent
+                    │ SendMessage
                     ▼
          ┌──────────────────────┐
-         │   CodeReviewer       │
+         │   CodeReviewer       │ ← 持久实例（复用）
          │  - 审查代码          │
          │  - 输出报告          │
          └──────────┬───────────┘
@@ -65,7 +82,7 @@
          ┌──────────────────────┐
          │   TaskArchitect      │
          │  - 通过：提交 Git    │
-         │  - 不通过：要求修复  │
+         │  - 不通过：SendMessage 要求修复  │
          │  - 更新 PROGRESS.md  │
          │  - 记录 TECH_NOTES   │
          └──────────────────────┘
