@@ -1,5 +1,6 @@
 package com.ragserver.controller;
 
+import com.ragserver.ingestion.IngestionPipeline;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
@@ -12,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -56,11 +58,22 @@ class RagControllerTest {
                 "test content".getBytes()
         );
 
+        // Mock IngestionService 返回值
+        IngestionService.BatchIngestionResult mockResult = createMockBatchResult();
+        when(ingestionService.ingestDocuments(anyList(), any())).thenReturn(mockResult);
+
         // When & Then: 上传文件
         mockMvc.perform(multipart("/api/ingest").file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.filename").value("test.pdf"))
-                .andExpect(jsonPath("$.status").exists());
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.chunkCount").value(10))
+                .andExpect(jsonPath("$.timing.total").value(1000))
+                .andExpect(jsonPath("$.timing.loading").exists())
+                .andExpect(jsonPath("$.timing.splitting").exists())
+                .andExpect(jsonPath("$.timing.embedding").exists());
+
+        verify(ingestionService).ingestDocuments(anyList(), any());
     }
 
     /**
@@ -185,5 +198,29 @@ class RagControllerTest {
                 .andExpect(jsonPath("$.collections[0].vectorCount").value(800));
 
         verify(documentService).getCollectionStats();
+    }
+
+    /**
+     * 创建 Mock BatchIngestionResult
+     */
+    private IngestionService.BatchIngestionResult createMockBatchResult() {
+        // 创建 IngestionResult
+        IngestionPipeline.IngestionResult ingestionResult = new IngestionPipeline.IngestionResult("test.pdf");
+        ingestionResult.setChunksProcessed(10);
+        ingestionResult.setDurationMs(1000L);
+        ingestionResult.setLoadingDurationMs(100L);
+        ingestionResult.setSplittingDurationMs(200L);
+        ingestionResult.setRefiningDurationMs(100L);
+        ingestionResult.setEnrichingDurationMs(150L);
+        ingestionResult.setEmbeddingDurationMs(300L);
+        ingestionResult.setStorageDurationMs(150L);
+        ingestionResult.setSuccess(true);
+
+        // 创建 BatchIngestionResult
+        IngestionService.BatchIngestionResult batchResult = new IngestionService.BatchIngestionResult();
+        batchResult.setTotalFiles(1);
+        batchResult.addSuccess(ingestionResult);
+
+        return batchResult;
     }
 }
