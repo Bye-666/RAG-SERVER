@@ -12,10 +12,10 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 73% (8/11 子任务) |
-| **最近完成** | F-008 跳过（Spring AI 自动注册） (2026-11-09 18:15) |
-| **下一任务** | F-009 添加 MCP 异常处理 |
-| **预计完成** | 2026-11-09（预计 2 小时） |
+| **总体进度** | 82% (9/11 子任务) |
+| **最近完成** | F-009 实现 MCP 异常处理 (2026-11-09 18:45) |
+| **下一任务** | F-010 编写 MCP 集成测试 |
+| **预计完成** | 2026-11-09（预计 1.5 小时） |
 | **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
@@ -40,18 +40,69 @@
 | F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | - | ⏭️ 跳过 | Spring AI 自动注册 |
-| F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ⏳ 待开始 | - |
+| F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ✅ 完成 | 2次审查 |
 | F-010 | 编写 MCP 集成测试 | test/.../mcp/ | BackendDev | ⏳ 待开始 | - |
 | F-011 | 更新项目文档 | CLAUDE.md, README.md | BackendDev | ⏳ 待开始 | - |
 
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
 - ✅ **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 已完成
-- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（1/4 完成）
+- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（2/4 完成）
 
 ---
 
 ## 📜 开发历史
+
+<details>
+<summary><b>📅 2026-11-09 18:45 - F-009 完成（MCP 异常处理）</b></summary>
+
+**任务**: 添加 MCP 异常处理  
+**负责人**: BackendDev  
+**结果**: ✅ 完成（2次审查后通过）
+
+**工作内容**:
+- ✅ 创建异常体系（5个类）:
+  - `McpException` - 基础异常类（错误码 + details）
+  - `McpValidationException` - 参数验证异常
+  - `McpServiceException` - 服务调用异常
+  - `McpResourceNotFoundException` - 资源不存在异常
+  - `McpErrorResponse` - 统一错误响应格式
+- ✅ 重构 4 个 MCP Tools 使用新异常处理
+- ✅ 添加参数验证（question、topK、filePath、idOrPath）
+- ✅ 统一错误响应格式：`[ERROR_CODE] message`
+- ✅ 新增 `RagListDocsResponse` 包装类型
+- ✅ 移除 Tool 层文件系统操作，职责分离
+- ✅ 安全加固：通用异常不泄露敏感信息
+
+**技术亮点**:
+- 异常体系设计清晰，基类 + 3 个子类
+- 静态工厂方法：`parameterRequired()`, `documentNotFound()` 等
+- 链式调用：`addDetail()` 返回 this
+- 安全防护：生产环境不返回 details，通用异常返回通用消息
+
+**审查记录**:
+- 第 1 次审查：发现 2 Critical + 3 Major + 2 Minor 问题
+  - Critical: ragListDocs 行为不一致、ragQuery 未捕获异常
+  - Major: 文件验证职责错位、敏感信息泄露、details 字段安全
+- 修复后：所有 Critical 和 Major 问题解决
+- 第 2 次审查：✅ 通过，剩余 1 个 Minor 问题不阻塞提交
+
+**验收**:
+- ✅ 编译成功
+- ✅ 应用启动成功（11.582秒）
+- ✅ 4 个 MCP Tools 成功注册
+- ✅ 健康检查通过
+- ✅ 代码审查通过
+
+**统计**:
+- 新增文件：5 个（exception 包）
+- 修改文件：2 个（RagMcpTools.java, McpErrorResponse.java）
+- 新增代码：~450 行
+- 删除代码：~20 行（文件系统验证）
+- ⏱️ 耗时：约 90 分钟（实现 40 分钟 + 审查修复 50 分钟）
+- 📦 提交：commit c709e7f
+
+</details>
 
 <details>
 <summary><b>📅 2026-11-09 18:15 - F-008 跳过（架构变更）</b></summary>
