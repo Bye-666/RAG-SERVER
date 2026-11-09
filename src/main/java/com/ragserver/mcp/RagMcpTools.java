@@ -2,12 +2,16 @@ package com.ragserver.mcp;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.ragserver.service.IngestionService;
 import com.ragserver.service.RagService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -35,6 +39,33 @@ public class RagMcpTools {
 
             @JsonPropertyDescription("Enable LLM reranking for better results (default: false)")
             Boolean enableRerank
+    ) {}
+
+    /**
+     * RAG Ingest 请求参数
+     */
+    public record RagIngestRequest(
+            @JsonProperty(required = true)
+            @JsonPropertyDescription("Path to the document file to ingest")
+            String filePath,
+
+            @JsonPropertyDescription("Name of the collection to store the document (default: rag_collection)")
+            String collectionName,
+
+            @JsonPropertyDescription("Custom metadata to attach to the document")
+            Map<String, Object> metadata
+    ) {}
+
+    /**
+     * RAG Ingest 响应结果
+     */
+    public record RagIngestResponse(
+            boolean success,
+            String message,
+            String filePath,
+            String fileName,
+            Integer chunksProcessed,
+            Long durationMs
     ) {}
 
     /**
@@ -67,6 +98,90 @@ public class RagMcpTools {
             } catch (Exception e) {
                 log.error("ragQuery failed", e);
                 return "Error: " + e.getMessage();
+            }
+        };
+    }
+
+    /**
+     * 注册 rag_ingest Tool
+     *
+     * @param ingestionService 文档摄取服务
+     * @return Function
+     */
+    @Bean
+    @Description("Ingest a document into the RAG knowledge base")
+    public Function<RagIngestRequest, RagIngestResponse> ragIngest(IngestionService ingestionService) {
+        log.info("注册 MCP Tool: ragIngest");
+
+        return request -> {
+            long startTime = System.currentTimeMillis();
+
+            try {
+                String filePath = request.filePath();
+                String collectionName = (request.collectionName() != null)
+                        ? request.collectionName()
+                        : "rag_collection";
+                Map<String, Object> metadata = request.metadata();
+
+                log.info("MCP Tool 调用: ragIngest, filePath={}, collectionName={}, metadata={}",
+                        filePath, collectionName, metadata);
+
+                // 记录元数据（当前版本暂不支持自定义元数据）
+                if (metadata != null && !metadata.isEmpty()) {
+                    log.warn("自定义元数据功能暂未实现，将忽略: {}", metadata);
+                }
+
+                // 调用摄取服务
+                Path documentPath = Path.of(filePath);
+                IngestionService.BatchIngestionResult batchResult =
+                        ingestionService.ingestDocuments(List.of(documentPath), collectionName);
+
+                long durationMs = System.currentTimeMillis() - startTime;
+
+                // 处理结果
+                if (batchResult.getSuccessCount() > 0) {
+                    var ingestionResult = batchResult.getSuccesses().get(0);
+                    log.info("文档摄取成功: file={}, chunks={}, duration={}ms",
+                            filePath, ingestionResult.getChunksProcessed(), durationMs);
+
+                    return new RagIngestResponse(
+                            true,
+                            "Document ingested successfully",
+                            filePath,
+                            documentPath.getFileName().toString(),
+                            ingestionResult.getChunksProcessed(),
+                            durationMs
+                    );
+                } else {
+                    String errorMessage = "Unknown error";
+                    if (!batchResult.getFailures().isEmpty()) {
+                        var failure = batchResult.getFailures().get(0);
+                        errorMessage = failure.getErrorMessage();
+                    }
+                    log.error("文档摄取失败: file={}, error={}", filePath, errorMessage);
+
+                    return new RagIngestResponse(
+                            false,
+                            "Ingestion failed: " + errorMessage,
+                            filePath,
+                            documentPath.getFileName().toString(),
+                            0,
+                            durationMs
+                    );
+                }
+
+            } catch (Exception e) {
+                long durationMs = System.currentTimeMillis() - startTime;
+                log.error("ragIngest failed", e);
+
+                return new RagIngestResponse(
+                        false,
+                        "Error: " + e.getMessage(),
+                        request.filePath(),
+                        null,
+                        0,
+                        durationMs
+                );
             }
         };
     }
