@@ -90,6 +90,101 @@
 
 ---
 
+## 🔒 持久化 Agent 约束（强制）
+
+**本团队仅包含 3 个固定 Agent 实例，禁止动态创建额外 Agent**。
+
+### 约束清单
+
+| # | 约束规则 | 违规后果 |
+|---|---------|---------|
+| 1 | **固定成员**：仅允许 TaskArchitect、BackendDev、CodeReviewer 三个实例 | 浪费资源、上下文混乱 |
+| 2 | **一次创建**：会话开始时一次性创建，必须携带固定 `name` 参数 | 重复创建导致实例冗余 |
+| 3 | **SendMessage 通信**：任务流转全程使用 `SendMessage` 向已存在 Agent 发送消息 | 违反持久化原则 |
+| 4 | **禁止重复创建**：不允许重复调用 `Agent()` 工具新建同名实例 | Token 浪费、上下文丢失 |
+| 5 | **上下文保持**：所有 Agent 保留会话上下文，记住历史任务和 PROGRESS.md 状态 | 失去连续性 |
+| 6 | **禁用 fork/isolation**：不允许派生临时子 Agent，不使用 `subagent_type: "fork"` | 违反团队架构 |
+| 7 | **恢复权限**：若 Agent 会话中断，仅允许 TaskArchitect 执行恢复，不得新建 | 避免实例失控 |
+
+### 正确示例
+
+```python
+# ✅ 会话初始化（仅一次）
+Agent(
+    name="BackendDev",  # 必须：固定名称
+    subagent_type="backend-dev",  # 必须：对应配置文件
+    description="后端开发实例",
+    prompt="实现 F-009 任务..."
+)
+
+Agent(
+    name="CodeReviewer",  # 必须：固定名称
+    subagent_type="code-reviewer",
+    description="代码审查实例",
+    prompt="审查 F-009 代码..."
+)
+
+# ✅ 后续任务（使用 SendMessage）
+SendMessage(
+    to="BackendDev",  # 向已存在的实例发送
+    message="实现 F-010 任务...",
+    summary="MCP 集成测试"
+)
+
+SendMessage(
+    to="CodeReviewer",
+    message="审查 F-010 代码...",
+    summary="审查集成测试"
+)
+```
+
+### 错误示例
+
+```python
+# ❌ 重复创建 BackendDev
+Agent(name="BackendDev", prompt="实现 F-009...")  # 第一次
+Agent(name="BackendDev", prompt="实现 F-010...")  # 第二次 - 错误！
+
+# ❌ 省略 name 参数
+Agent(subagent_type="backend-dev", prompt="...")  # 动态生成名称 - 错误！
+
+# ❌ 使用 fork 派生
+Agent(subagent_type="fork", prompt="...")  # 违反团队架构 - 错误！
+
+# ❌ 创建额外 Agent
+Agent(name="Tester", prompt="...")  # 不在固定成员中 - 错误！
+```
+
+### 验证检查清单
+
+TaskArchitect 在每次调用 Agent 工具前必须自检：
+
+- [ ] 是否是会话初始化阶段？（仅允许创建一次）
+- [ ] 是否携带了固定 `name` 参数？（BackendDev / CodeReviewer）
+- [ ] 是否应该使用 `SendMessage` 而不是 `Agent`？
+- [ ] 是否违反了 3 人团队限制？
+- [ ] 是否使用了 fork/isolation 参数？
+
+### 恢复机制
+
+如果 Agent 实例意外中断（极少发生）：
+
+```python
+# 仅 TaskArchitect 可执行恢复
+SendMessage(
+    to="BackendDev",  # 尝试向原实例发送
+    message="状态检查：你是否还在？"
+)
+
+# 若无响应，使用 ListAgents 确认
+ListAgents()
+
+# 确认实例已消失后，才允许重新创建
+Agent(name="BackendDev", subagent_type="backend-dev", prompt="恢复会话...")
+```
+
+---
+
 ## 硬性规则
 
 ### 1. 文件互斥规则
@@ -327,4 +422,4 @@ docker-compose ps
 ---
 
 **维护人**: TaskArchitect  
-**最后更新**: 2026-11-09 14:30
+**最后更新**: 2026-11-09 18:20
