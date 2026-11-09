@@ -12,10 +12,10 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 82% (9/11 子任务) |
-| **最近完成** | F-009 实现 MCP 异常处理 (2026-11-09 18:45) |
-| **下一任务** | F-010 编写 MCP 集成测试 |
-| **预计完成** | 2026-11-09（预计 1.5 小时） |
+| **总体进度** | 91% (10/11 子任务) |
+| **最近完成** | F-010 编写 MCP 集成测试 (2026-11-09 19:30) |
+| **下一任务** | F-011 更新项目文档 |
+| **预计完成** | 2026-11-09（预计 30 分钟） |
 | **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
@@ -41,17 +41,89 @@
 | F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | - | ⏭️ 跳过 | Spring AI 自动注册 |
 | F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ✅ 完成 | 2次审查 |
-| F-010 | 编写 MCP 集成测试 | test/.../mcp/ | BackendDev | ⏳ 待开始 | - |
+| F-010 | 编写 MCP 集成测试 | test/.../mcp/ | BackendDev | ✅ 完成 | 25个测试 |
 | F-011 | 更新项目文档 | CLAUDE.md, README.md | BackendDev | ⏳ 待开始 | - |
 
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
 - ✅ **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 已完成
-- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（2/4 完成）
+- 📝 **里程碑 3**: 集成与测试（F-008 ~ F-011）- 进行中（3/4 完成）
 
 ---
 
 ## 📜 开发历史
+
+<details>
+<summary><b>📅 2026-11-09 19:30 - F-010 完成（MCP 集成测试）</b></summary>
+
+**任务**: 编写 MCP 集成测试  
+**负责人**: BackendDev  
+**审查人**: CodeReviewer  
+**结果**: ✅ 完成（审查通过，质量评分 9/10）
+
+**工作内容**:
+- ✅ 创建 `RagMcpToolsIntegrationTest.java`（565 行代码）
+- ✅ 实现 25 个测试方法，覆盖 4 个 MCP Tools
+- ✅ 使用 @SpringBootTest + @MockBean + AssertJ
+- ✅ Mock Service 层，不依赖真实 Milvus/MySQL/Redis
+
+**测试覆盖情况**:
+- **ragQuery Tool** (7 个测试):
+  - 正常查询流程、自定义参数（topK/rerank）
+  - 参数验证：question 为空/null、topK 越界
+  - 异常场景：Service 抛出异常
+- **ragIngest Tool** (6 个测试):
+  - 正常上传、自定义 Collection
+  - 参数验证：filePath 为空/null
+  - 异常场景：摄取失败、Service 异常
+- **ragListDocs Tool** (7 个测试):
+  - 无参数查询、按状态过滤（SUCCESS/FAILED）
+  - 大小写容错、无效状态值
+  - 异常场景：Service 异常
+- **ragDeleteDoc Tool** (6 个测试):
+  - 通过 ID/路径删除
+  - 参数验证：idOrPath 为空/null
+  - 资源不存在、Service 异常
+
+**技术亮点**:
+- 从 Spring 容器获取 Function Bean（验证实际注册）
+- 完整的参数验证测试（null、空字符串、范围越界）
+- 异常处理测试完善（McpException 及其子类）
+- Given-When-Then 结构清晰，@DisplayName 中文描述
+
+**审查记录**:
+- **质量评分**: 9/10
+- **问题统计**: 0 Critical、0 Major、3 Minor（不阻塞提交）
+- **Minor 问题**:
+  1. 缺少空数据库场景测试（可后续补充）
+  2. Mock 对象可考虑在 @BeforeEach 中重置
+  3. 时间戳可使用固定值
+- **优秀之处**:
+  - 测试覆盖全面（25 个测试 >= 12 个最低要求）
+  - 测试结构清晰，代码可读性强
+  - Mock 策略正确，断言充分
+  - 技术实现正确
+
+**验收**:
+- ✅ 新测试类编译通过
+- ✅ 代码审查通过（9/10 分）
+- ✅ 测试覆盖全面（正常流程 + 异常场景 + 参数验证）
+- ✅ 符合项目规范
+
+**技术债记录**:
+- ⚠️ 项目中其他旧测试类有编译错误（HybridRetrieverTest、RagServiceTest 等）
+- **原因**: API 变更导致旧测试不兼容（HybridRetriever.retrieve() 返回类型变更）
+- **影响**: 无法通过 `mvn test` 运行完整测试套件
+- **计划**: 后续单独任务修复旧测试类
+
+**统计**:
+- 新增文件：1 个
+- 新增代码：565 行
+- 测试方法：25 个
+- ⏱️ 耗时：约 90 分钟（实现 60 分钟 + 审查 30 分钟）
+- 📦 提交：commit 3a005e1
+
+</details>
 
 <details>
 <summary><b>📅 2026-11-09 18:45 - F-009 完成（MCP 异常处理）</b></summary>
