@@ -43,7 +43,7 @@
 
 - 🚀 **企业级架构**：基于 Spring Boot 生态，依赖注入、配置管理开箱即用
 - 🎯 **混合检索**：Dense 向量（语义） + Sparse BM25（关键词） + RRF 融合
-- 🔌 **MCP 协议**：标准化 AI Agent 工具接口，与 Claude Desktop 无缝集成
+- 🔌 **MCP 协议集成**：提供 4 个标准化 MCP Tools（查询、摄取、管理），与 Claude Desktop/CLI 无缝对接
 - 📊 **完整可观测**：Actuator 监控 + Dashboard 管理界面
 - 🧩 **灵活扩展**：模型层抽象，便于切换 LLM/Embedding 提供商
 - 📄 **智能文档处理**：PDF 解析、递归切分、元数据增强
@@ -60,7 +60,7 @@
 - ✅ **阶段 C**: Milvus 混合检索集成
 - ✅ **阶段 D**: 文档摄取 Pipeline
 - ✅ **阶段 E**: RAG 检索与生成
-- ⏳ **阶段 F**: MCP 协议集成（进行中）
+- ✅ **阶段 F**: MCP 协议集成（4 个 Tools + 异常处理 + 集成测试）
 - ⏳ **阶段 G-J**: 元数据管理、Dashboard、评估优化
 
 查看详细任务：[DEV_SPEC.md](DEV_SPEC.md)
@@ -71,6 +71,7 @@
 |-----|------|------|------|
 | **框架** | Spring Boot | 3.4.1 | 服务框架、依赖注入、配置管理 |
 | **AI 抽象** | Spring AI | 1.0.0 | ChatClient/EmbeddingClient + MCP Server |
+| **MCP 协议** | Spring AI MCP Server | 1.0.0 | stdio 模式 MCP 工具提供 |
 | **LLM** | 阿里云 DashScope | qwen3.7-flash | 对话生成、文本理解 |
 | **Embedding** | DashScope Embedding | qwen3.7-text-embedding | 文本向量化（1024 维） |
 | **向量库** | Milvus | 2.5.3 | 混合检索（Dense + Sparse） |
@@ -202,6 +203,9 @@ RAG-SERVER/
 │   │   └── DashScopeVisionClient.java      # Vision 客户端
 │   ├── config/                             # 配置类
 │   ├── controller/                         # REST 控制器
+│   ├── mcp/                                # MCP 协议集成
+│   │   ├── RagMcpTools.java                # 4 个 MCP Tools 定义
+│   │   └── exception/                      # MCP 异常处理
 │   ├── service/                            # 业务服务层
 │   │   ├── RagService.java                 # RAG 核心服务
 │   │   ├── IngestionService.java           # 文档摄取服务
@@ -228,6 +232,8 @@ RAG-SERVER/
 │       ├── css/style.css                   # 样式文件
 │       └── js/app.js                       # 前端逻辑
 ├── src/test/                               # 测试代码
+│   └── java/com/ragserver/mcp/
+│       └── RagMcpToolsIntegrationTest.java # MCP 集成测试（25 个测试）
 ├── config/                                 # Docker 配置文件
 │   ├── mysql/                              # MySQL 配置和初始化脚本
 │   ├── redis/                              # Redis 配置
@@ -282,6 +288,67 @@ curl -X DELETE http://localhost:8080/api/documents/{documentId}
 # 查看统计信息
 curl http://localhost:8080/api/stats/overview
 ```
+
+### MCP 工具调用
+
+RAG-SERVER 提供 4 个 MCP Tools，可通过 Claude Desktop 或 Claude Code CLI 调用：
+
+#### ragQuery - 查询知识库
+
+```json
+{
+  "tool": "ragQuery",
+  "arguments": {
+    "question": "什么是混合检索？",
+    "topK": 5,
+    "enableRerank": false
+  }
+}
+```
+
+**返回**：生成的答案 + 性能统计（检索/LLM 耗时）
+
+#### ragIngest - 上传文档
+
+```json
+{
+  "tool": "ragIngest",
+  "arguments": {
+    "filePath": "/path/to/document.pdf",
+    "collectionName": "my_knowledge_base"
+  }
+}
+```
+
+**返回**：上传结果、处理的 Chunk 数量、耗时
+
+#### ragListDocs - 列出文档
+
+```json
+{
+  "tool": "ragListDocs",
+  "arguments": {
+    "status": "SUCCESS"
+  }
+}
+```
+
+**返回**：文档列表（ID、文件名、状态、Chunk 数量、处理时间）
+
+#### ragDeleteDoc - 删除文档
+
+```json
+{
+  "tool": "ragDeleteDoc",
+  "arguments": {
+    "idOrPath": "abc123"
+  }
+}
+```
+
+**返回**：删除结果
+
+**注意**：MCP Tools 通过 stdio 协议通信，需要配置 MCP 客户端（如 Claude Desktop）连接到 RAG-SERVER。详细配置见 [CLAUDE.md](CLAUDE.md) 的 MCP 集成章节。
 
 ## 🔧 开发指南
 

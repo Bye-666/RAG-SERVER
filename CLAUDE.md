@@ -205,6 +205,194 @@ External Services (DashScope API, Milvus Server, MySQL Database, Redis Cache)
 - 流式输出支持（SSE）
 - 性能监控（各阶段耗时统计）
 
+## MCP 协议集成
+
+### MCP 协议概述
+
+**MCP (Model Context Protocol)** 是一种标准化的 AI Agent 工具接口协议，由 Anthropic 提出。RAG-SERVER 通过 Spring AI MCP Server 实现了 MCP 协议支持，让 Claude Desktop、Claude Code CLI 等客户端可以直接调用 RAG 功能。
+
+**架构特点**：
+- 基于 **Spring AI MCP Server** (`spring-ai-starter-mcp-server-webmvc:1.0.0`)
+- 使用 **Function Calling** 机制自动注册 MCP Tools
+- **stdio 模式**通信，无需 HTTP 端口
+- 统一的异常处理和参数验证
+
+### 可用的 MCP Tools
+
+RAG-SERVER 提供 4 个 MCP Tools，涵盖查询、摄取、管理等核心功能：
+
+#### 1. ragQuery - 查询知识库
+
+**功能**：使用混合检索（Dense + Sparse）查询 RAG 知识库并生成答案。
+
+**参数**：
+- `question` (必需): 用户问题
+- `topK` (可选): 检索文档数量，范围 1-50，默认 10
+- `enableRerank` (可选): 是否启用 LLM 重排序，默认 false
+
+**返回**：生成的答案 + 性能统计（检索耗时、LLM 耗时）
+
+**示例**：
+```json
+{
+  "question": "什么是 RAG？",
+  "topK": 5,
+  "enableRerank": false
+}
+```
+
+#### 2. ragIngest - 上传文档到知识库
+
+**功能**：将文档（PDF）摄取到 RAG 知识库，自动完成解析、切分、向量化、存储。
+
+**参数**：
+- `filePath` (必需): 文档文件路径（绝对路径）
+- `collectionName` (可选): Collection 名称，默认 "rag_collection"
+- `metadata` (可选): 自定义元数据（预留，当前版本未实现）
+
+**返回**：
+```json
+{
+  "success": true,
+  "message": "Document ingested successfully",
+  "filePath": "/path/to/doc.pdf",
+  "fileName": "doc.pdf",
+  "chunksProcessed": 42,
+  "durationMs": 5230
+}
+```
+
+#### 3. ragListDocs - 列出知识库文档
+
+**功能**：查询已摄取的文档列表，支持按状态过滤。
+
+**参数**：
+- `status` (可选): 过滤状态，可选值 "SUCCESS" 或 "FAILED"，默认返回所有
+
+**返回**：
+```json
+{
+  "success": true,
+  "message": "Success",
+  "documents": [
+    {
+      "id": "abc123",
+      "source": "report.pdf",
+      "filePath": "/docs/report.pdf",
+      "status": "SUCCESS",
+      "chunkCount": 25,
+      "processedAt": "2026-11-09T12:00:00Z"
+    }
+  ]
+}
+```
+
+#### 4. ragDeleteDoc - 删除文档
+
+**功能**：从知识库删除文档，联动清理向量数据和数据库记录。
+
+**参数**：
+- `idOrPath` (必需): 文档 ID（文件哈希）或文件路径
+
+**返回**：
+```json
+{
+  "success": true,
+  "message": "Document deleted successfully",
+  "idOrPath": "abc123"
+}
+```
+
+### MCP Server 启动
+
+MCP Server 随 Spring Boot 应用自动启动，使用 **stdio 模式**（标准输入输出）通信。
+
+**配置**（`application.yaml`）：
+```yaml
+spring:
+  ai:
+    mcp:
+      server:
+        enabled: true
+        transport: stdio
+```
+
+**启动日志**：
+```
+注册 MCP Tool: ragQuery
+注册 MCP Tool: ragIngest
+注册 MCP Tool: ragListDocs
+注册 MCP Tool: ragDeleteDoc
+MCP Server 已启动（stdio 模式）
+```
+
+### 异常处理机制
+
+MCP Tools 使用统一的异常处理体系，所有错误返回格式一致：
+
+**异常类型**：
+- `VALIDATION_ERROR`: 参数验证失败（空值、范围越界、格式错误）
+- `SERVICE_ERROR`: 服务调用失败（摄取失败、检索失败）
+- `RESOURCE_NOT_FOUND`: 资源不存在（文档不存在、Collection 不存在）
+- `INTERNAL_ERROR`: 内部错误（未预期的异常）
+
+**错误响应格式**：
+```
+Error [ERROR_CODE]: 错误描述信息
+```
+
+**示例**：
+```
+Error [VALIDATION_ERROR]: Required parameter 'question' is missing or empty
+Error [RESOURCE_NOT_FOUND]: Document not found: abc123
+Error [SERVICE_ERROR]: Ingestion failed: File not found
+```
+
+### 测试 MCP 功能
+
+#### 方式 1: 通过集成测试
+
+```bash
+# 运行 MCP 集成测试（需要先修复其他测试类的编译错误）
+mvn test -Dtest=RagMcpToolsIntegrationTest
+
+# 测试覆盖：
+# - ragQuery: 7 个测试（正常+参数验证+异常）
+# - ragIngest: 6 个测试（正常+参数验证+异常）
+# - ragListDocs: 6 个测试（正常+过滤+异常）
+# - ragDeleteDoc: 6 个测试（正常+参数验证+异常）
+```
+
+#### 方式 2: 通过 Claude Desktop 集成
+
+1. 配置 Claude Desktop 的 MCP 客户端
+2. 添加 RAG-SERVER 作为 MCP 工具提供者
+3. 在对话中直接调用 ragQuery、ragIngest 等工具
+
+**注意**：完整的 MCP 协议测试（Claude Desktop 集成）将在项目完成后进行。
+
+### 架构说明
+
+**MCP 集成在分层架构中的位置**：
+
+```
+Claude Desktop / Claude Code CLI (MCP 客户端)
+            ↓ (stdio / MCP 协议)
+    Spring AI MCP Server
+            ↓ (Function Calling)
+    RagMcpTools (4 个 @Bean Function)
+            ↓
+Service Layer (RagService, IngestionService, DocumentService)
+            ↓
+Component Layer (HybridRetriever, MilvusHybridStore, etc.)
+```
+
+**技术实现**：
+1. **自动注册**：Spring AI 自动扫描 `@Bean Function<?, ?>` 注册为 MCP Tools
+2. **参数绑定**：使用 `record` 类型定义请求参数，自动 JSON 反序列化
+3. **类型安全**：Function 签名明确输入输出类型，编译时检查
+4. **异常转换**：业务异常自动转换为统一的 MCP 错误响应
+
 ## 配置管理
 
 ### 环境变量
@@ -230,6 +418,7 @@ export REDIS_PORT="6379"
 
 ### 关键配置项
 - `spring.ai.dashscope.*`：DashScope 客户端配置（API key、模型名、QPS 限流）
+- `spring.ai.mcp.server.*`：MCP Server 配置（enabled、transport 模式）
 - `spring.datasource.*`：MySQL 数据源配置（URL、用户名、密码、连接池）
 - `spring.data.redis.*`：Redis 缓存配置（host、port、连接池）
 - `spring.cache.*`：Spring Cache 配置（类型、TTL、键前缀）
@@ -238,6 +427,12 @@ export REDIS_PORT="6379"
 - `rag.retrieval.*`：检索参数（top-k、是否启用 Rerank）
 
 ### 重要配置说明
+**MCP Server 配置**：
+- 传输模式：stdio（标准输入输出）
+- 自动启动：随 Spring Boot 应用启动
+- Tools 注册：自动扫描 @Bean Function
+- 用途：为 Claude Desktop/CLI 提供 RAG 工具调用能力
+
 **缓存配置**：
 - 缓存类型：Redis（主方案）
 - TTL：1小时（3600000ms）
