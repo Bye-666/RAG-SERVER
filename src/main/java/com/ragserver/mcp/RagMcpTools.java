@@ -78,6 +78,24 @@ public class RagMcpTools {
     ) {}
 
     /**
+     * RAG Delete Doc 请求参数
+     */
+    public record RagDeleteDocRequest(
+            @JsonProperty(required = true)
+            @JsonPropertyDescription("Document ID (file hash) or file path to delete")
+            String idOrPath
+    ) {}
+
+    /**
+     * RAG Delete Doc 响应结果
+     */
+    public record RagDeleteDocResponse(
+            boolean success,
+            String message,
+            String idOrPath
+    ) {}
+
+    /**
      * 注册 rag_query Tool
      *
      * @param ragService RAG 核心服务
@@ -235,6 +253,56 @@ public class RagMcpTools {
             } catch (Exception e) {
                 log.error("ragListDocs failed", e);
                 return List.of();  // 返回空列表，不抛异常
+            }
+        };
+    }
+
+    /**
+     * 注册 rag_delete_doc Tool
+     *
+     * @param documentService 文档服务
+     * @return Function
+     */
+    @Bean
+    @Description("Delete a document from the RAG knowledge base")
+    public Function<RagDeleteDocRequest, RagDeleteDocResponse> ragDeleteDoc(DocumentService documentService) {
+        log.info("注册 MCP Tool: ragDeleteDoc");
+
+        return request -> {
+            try {
+                String idOrPath = request.idOrPath();
+
+                // 参数验证
+                if (idOrPath == null || idOrPath.trim().isEmpty()) {
+                    log.warn("ragDeleteDoc 参数无效：idOrPath 为空");
+                    return new RagDeleteDocResponse(
+                            false,
+                            "Invalid parameter: idOrPath cannot be empty",
+                            idOrPath
+                    );
+                }
+
+                log.info("MCP Tool 调用: ragDeleteDoc, idOrPath={}", idOrPath);
+
+                // 调用文档服务删除文档
+                documentService.deleteDocument(idOrPath);
+
+                log.info("文档删除成功：idOrPath={}", idOrPath);
+
+                return new RagDeleteDocResponse(
+                        true,
+                        "Document deleted successfully",
+                        idOrPath
+                );
+
+            } catch (Exception e) {
+                log.error("ragDeleteDoc failed: idOrPath={}", request.idOrPath(), e);
+
+                return new RagDeleteDocResponse(
+                        false,
+                        "Delete failed: " + e.getMessage(),
+                        request.idOrPath()
+                );
             }
         };
     }
