@@ -63,6 +63,20 @@ spring:
       # QPS限流（每秒请求数）
       qps: 10
 
+    # ========================================
+    # Spring AI MCP Server 配置
+    # ========================================
+    mcp:
+      server:
+        # MCP Server 名称
+        name: rag-server
+        # MCP Server 版本
+        version: 1.0.0
+        # MCP Server 描述
+        description: "Enterprise RAG Framework with Hybrid Retrieval"
+        # 传输层类型（stdio: 标准输入输出）
+        transport: stdio
+
   # ========================================
   # 数据源配置（MySQL 8.0）
   # ========================================
@@ -172,16 +186,8 @@ spring:
 # MCP Server 配置
 # ========================================
 # 注意：这些配置用于阶段F（MCP协议集成）
-mcp:
-  server:
-    # MCP服务名称
-    name: rag-server
-    # 服务版本号
-    version: 1.0.0
-    # 服务描述信息
-    description: "Enterprise RAG Framework with Hybrid Retrieval"
-    # 是否启用MCP Server（开发时可设为false临时关闭）
-    enabled: true
+# MCP 配置已合并到上面的 spring.ai 配置块中
+
 
 # ========================================
 # Milvus 向量数据库配置

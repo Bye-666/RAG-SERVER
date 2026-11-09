@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.1</version>
+        <version>3.4.1</version>
         <relativePath/>
     </parent>
 
@@ -36,10 +36,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 依赖版本 -->
-        <spring-ai.version>1.0.0-M3</spring-ai.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
         <milvus.version>2.6.24</milvus.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <mcp-sdk.version>2.0.0</mcp-sdk.version>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
 
     <!--
@@ -169,13 +170,13 @@
         -->
 
         <!--
-            MCP Java SDK：提供stdio传输和工具注册
-            阶段F（MCP集成）：正在验证依赖可用性
+            Spring AI MCP Server Starter：提供注解驱动的 MCP Tools
+            阶段F（MCP集成）：使用 Spring AI 官方支持
         -->
         <dependency>
-            <groupId>io.modelcontextprotocol.sdk</groupId>
-            <artifactId>mcp</artifactId>
-            <version>${mcp-sdk.version}</version>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+            <version>1.0.0</version>
         </dependency>
 
         <!--
