@@ -2,7 +2,7 @@
 
 > **项目定位**: 基于 Spring Boot + Spring AI 的企业级 RAG 框架  
 > **技术栈**: Java 17 | Milvus 2.5 | MySQL 8.0 | Redis 7.2 | DashScope  
-> **最后更新**: 2026-11-09 15:20  
+> **最后更新**: 2026-11-09 16:00  
 > **维护人**: 小拜无霸哥
 
 ---
@@ -12,10 +12,10 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 45% (5/11 子任务) |
-| **最近完成** | F-005 实现 rag_ingest Tool (2026-11-09 15:20) |
-| **下一任务** | F-006 实现 rag_list_docs Tool |
-| **预计完成** | 2026-11-10（预计 5 小时） |
+| **总体进度** | 55% (6/11 子任务) |
+| **最近完成** | F-006 实现 rag_list_docs Tool (2026-11-09 16:00) |
+| **下一任务** | F-007 实现 rag_delete_doc Tool |
+| **预计完成** | 2026-11-10（预计 4 小时） |
 | **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
@@ -37,7 +37,7 @@
 | F-003 | 实现 McpServerRunner | mcp/McpServerRunner.java | BackendDev | ✅ 完成 | 验证+修复 |
 | F-004 | 实现 ragQuery Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 重构为Spring AI MCP |
 | F-005 | 实现 rag_ingest Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
-| F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
+| F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
 | F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | BackendDev | ⏳ 待开始 | - |
 | F-009 | 添加 MCP 异常处理 | mcp/exception/ | BackendDev | ⏳ 待开始 | - |
@@ -46,12 +46,47 @@
 
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
-- 📝 **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 进行中（2/4 完成）
+- 📝 **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 进行中（3/4 完成）
 - ⏳ **里程碑 3**: 集成与测试（F-008 ~ F-011）- 未开始
 
 ---
 
 ## 📜 开发历史
+
+<details>
+<summary><b>📅 2026-11-09 16:00 - F-006 完成</b></summary>
+
+**任务**: 实现 rag_list_docs Tool  
+**负责人**: BackendDev  
+**结果**: ✅ 完成（1次修复后通过审查）
+
+**工作内容**:
+- ✅ 创建：`RagListDocsRequest` record（支持可选的status参数）
+- ✅ 实现：`ragListDocs` Function Bean（查询文档列表）
+- ✅ 调用：`DocumentService.listDocuments()` 和 `listDocumentsByStatus()`
+- ✅ 返回：`List<DocumentService.DocumentInfo>` 结构化对象
+- ✅ 支持：按状态过滤（SUCCESS/FAILED），大小写容错
+- 🐛 修复：异常处理不一致（改为返回空列表）
+- ⏱️ 耗时：约 30 分钟（实现 20 分钟 + 修复 10 分钟）
+- 📦 提交：commit b110200
+
+**验收**:
+- ✅ 编译成功
+- ✅ 应用启动成功
+- ✅ ragListDocs Tool 已注册
+- ✅ 代码审查通过
+
+**技术亮点**:
+- 日志记录完善（注册、调用、成功、警告、错误全覆盖）
+- 防御性编程（null检查、空字符串检查、大小写容错）
+- 边界情况处理（无效status降级为返回所有文档）
+- 异常处理统一（返回空列表，不抛异常）
+
+**审查记录**:
+- 第 1 次审查：发现 Critical 问题（异常处理不一致）
+- 修复后：直接通过（小修复无需二次完整审查）
+
+</details>
 
 <details>
 <summary><b>📅 2026-11-09 15:20 - F-005 完成</b></summary>
@@ -141,9 +176,9 @@
 <details>
 <summary>📌 当前状态（点击展开）</summary>
 
-**当前时间**: 2026-11-09 15:20  
+**当前时间**: 2026-11-09 16:00  
 **当前状态**: ▶️ 进行中（团队协作模式）  
-**当前任务**: F-006 实现 rag_list_docs Tool  
+**当前任务**: F-007 实现 rag_delete_doc Tool  
 **负责人**: 待分配  
 **准备工作**: 等待 TaskArchitect 下一步指示
 
