@@ -2,7 +2,7 @@
 
 > **项目定位**: 基于 Spring Boot + Spring AI 的企业级 RAG 框架  
 > **技术栈**: Java 17 | Milvus 2.5 | MySQL 8.0 | Redis 7.2 | DashScope  
-> **最后更新**: 2026-11-09 11:30  
+> **最后更新**: 2026-11-09 15:20  
 > **维护人**: 小拜无霸哥
 
 ---
@@ -12,10 +12,10 @@
 | 指标 | 状态 |
 |------|------|
 | **当前阶段** | 阶段 F - MCP 协议集成 |
-| **总体进度** | 36% (4/11 子任务) |
-| **最近完成** | F-004 实现 ragQuery Tool (2026-11-09 13:55) |
-| **下一任务** | F-005 实现 rag_ingest Tool |
-| **预计完成** | 2026-11-10（预计 6 小时） |
+| **总体进度** | 45% (5/11 子任务) |
+| **最近完成** | F-005 实现 rag_ingest Tool (2026-11-09 15:20) |
+| **下一任务** | F-006 实现 rag_list_docs Tool |
+| **预计完成** | 2026-11-10（预计 5 小时） |
 | **当前状态** | ▶️ 进行中（团队协作模式） |
 
 ---
@@ -36,7 +36,7 @@
 | F-002 | 创建 McpConfig 配置类 | config/McpConfig.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-003 | 实现 McpServerRunner | mcp/McpServerRunner.java | BackendDev | ✅ 完成 | 验证+修复 |
 | F-004 | 实现 ragQuery Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 重构为Spring AI MCP |
-| F-005 | 实现 rag_ingest Tool | mcp/RagMcpTools.java | BackendDev | 📝 进行中 | - |
+| F-005 | 实现 rag_ingest Tool | mcp/RagMcpTools.java | BackendDev | ✅ 完成 | 1次修复 |
 | F-006 | 实现 rag_list_docs Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
 | F-007 | 实现 rag_delete_doc Tool | mcp/RagMcpTools.java | BackendDev | ⏳ 待开始 | - |
 | F-008 | 创建 McpToolsProvider | mcp/McpToolsProvider.java | BackendDev | ⏳ 待开始 | - |
@@ -46,12 +46,45 @@
 
 #### 关键里程碑
 - ✅ **里程碑 1**: 基础设施就绪（F-001 ~ F-003）- 已完成
-- 📝 **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 进行中（1/4 完成）
+- 📝 **里程碑 2**: 核心 Tools 实现（F-004 ~ F-007）- 进行中（2/4 完成）
 - ⏳ **里程碑 3**: 集成与测试（F-008 ~ F-011）- 未开始
 
 ---
 
 ## 📜 开发历史
+
+<details>
+<summary><b>📅 2026-11-09 15:20 - F-005 完成</b></summary>
+
+**任务**: 实现 rag_ingest Tool  
+**负责人**: BackendDev  
+**结果**: ✅ 完成（1次修复后通过审查）
+
+**工作内容**:
+- ✅ 创建：`RagIngestRequest` record（filePath, collectionName, metadata）
+- ✅ 创建：`RagIngestResponse` record（success, message, fileName, chunksProcessed, durationMs）
+- ✅ 实现：`ragIngest` Function Bean（文档上传到知识库）
+- ✅ 调用：`IngestionService.ingestDocuments()` 完成摄取
+- ✅ 添加：参数验证、错误处理、性能监控
+- 🐛 修复：潜在的 IndexOutOfBoundsException（空列表安全检查）
+- ⏱️ 耗时：约 40 分钟（实现 30 分钟 + 修复 10 分钟）
+- 📦 提交：commit 0332170
+
+**验收**:
+- ✅ 编译成功
+- ✅ 应用启动成功
+- ✅ ragIngest Tool 已注册
+- ✅ 代码审查通过
+
+**技术难点**:
+- 防御性编程：处理 batchResult 既无成功也无失败的边界情况
+- 参数设计：metadata 参数预留，待阶段 G 实现
+
+**审查记录**:
+- 第 1 次审查：发现 Major 问题（IndexOutOfBoundsException）
+- 修复后：直接通过（小修复无需二次完整审查）
+
+</details>
 
 <details>
 <summary><b>📅 2026-11-09 13:55 - F-004 完成（重大重构）</b></summary>
@@ -108,11 +141,11 @@
 <details>
 <summary>📌 当前状态（点击展开）</summary>
 
-**当前时间**: 2026-11-09 14:10  
+**当前时间**: 2026-11-09 15:20  
 **当前状态**: ▶️ 进行中（团队协作模式）  
-**当前任务**: F-005 实现 rag_ingest Tool  
-**负责人**: BackendDev（待接收任务）  
-**准备工作**: TaskArchitect 正在拆解任务
+**当前任务**: F-006 实现 rag_list_docs Tool  
+**负责人**: 待分配  
+**准备工作**: 等待 TaskArchitect 下一步指示
 
 </details>
 
