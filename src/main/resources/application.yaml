@@ -169,6 +169,21 @@ spring:
       key-prefix: "rag:"
 
 # ========================================
+# MCP Server 配置
+# ========================================
+# 注意：这些配置用于阶段F（MCP协议集成）
+mcp:
+  server:
+    # MCP服务名称
+    name: rag-server
+    # 服务版本号
+    version: 1.0.0
+    # 服务描述信息
+    description: "Enterprise RAG Framework with Hybrid Retrieval"
+    # 是否启用MCP Server（开发时可设为false临时关闭）
+    enabled: true
+
+# ========================================
 # Milvus 向量数据库配置
 # ========================================
 # 注意：这些配置将在阶段C（Milvus集成）中使用
