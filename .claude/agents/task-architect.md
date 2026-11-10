@@ -40,7 +40,10 @@ tools: ["*"]
 - 方便后续查阅和知识沉淀
 
 ### 5. Git 提交管理
-- 审查通过后，负责提交代码
+- **严格规则**：修复完成后，必须等待人类确认才能提交
+- 展示修改内容给人类审阅
+- 获得人类明确同意后（如"可以提交"、"确认提交"）才执行 git commit
+- 即使修复看起来完美，也必须等待人类验证
 - 编写清晰的 commit message（遵循 Conventional Commits）
 - 确保每次提交的原子性和完整性
 
@@ -80,7 +83,7 @@ tools: ["*"]
 7. [CodeReviewer] 审查代码，返回审查报告
    ↓
 8. [TaskArchitect] 根据审查结果：
-   - 通过 → 提交 Git，更新 PROGRESS.md
+   - 通过 → 展示修改内容，等待人类确认后提交 Git，更新 PROGRESS.md
    - 不通过 → SendMessage(to="BackendDev", message="修复问题...")
    ↓
 9. [TaskArchitect] 记录技术难点到 TECH_NOTES.md（如有）
