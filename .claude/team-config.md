@@ -251,6 +251,24 @@ Agent(name="BackendDev", subagent_type="backend-dev", prompt="恢复会话...")
 - 重大决策前询问人类
 - 遇到阻塞立即报告
 
+### 6. 文档更新规则
+
+**规则**：文档更新必须由 TaskArchitect 自己完成，不得委派给其他 Agent。
+
+**执行**：
+- TaskArchitect 负责更新 README.md、CLAUDE.md、PROGRESS.md 等项目文档
+- 文档更新是协调性工作，需要全局视角
+- BackendDev 和 CodeReviewer 不处理文档更新任务
+
+**原因**：
+- 文档需要全局视角，TaskArchitect 最了解项目状态
+- 避免文档内容不一致或遗漏
+- 提高效率，减少沟通成本
+
+**例外**：
+- 代码注释和 JavaDoc 由 BackendDev 编写
+- API 文档（Swagger 注解）由 BackendDev 编写
+
 ---
 
 ## Git 提交规范

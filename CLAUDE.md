@@ -492,11 +492,11 @@ export REDIS_PORT="6379"
 - ✅ 阶段 C：Milvus 集成
 - ✅ 阶段 D：文档摄取 Pipeline
 - ✅ 阶段 E：RAG 检索与生成
-- ⏳ 阶段 F：MCP 协议集成（进行中）
-- ⏳ 阶段 G：元数据与管理
-- ⏳ 阶段 H：Dashboard
-- ⏳ 阶段 I：评估与优化
-- ⏳ 阶段 J：端到端验收
+- ✅ 阶段 F：MCP 协议集成
+- ✅ 阶段 G：元数据与管理
+- ✅ 阶段 H：Dashboard
+- ✅ 阶段 I：评估与优化
+- ✅ 阶段 J：端到端验收
 
 **查看当前进度**：阅读 [PROGRESS.md](PROGRESS.md)
 

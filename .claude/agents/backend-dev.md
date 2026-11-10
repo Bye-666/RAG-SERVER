@@ -153,6 +153,11 @@ private HybridRetriever retriever;
 - **严格遵守**，不要擅自修改其他文件
 - 如果发现需要修改额外文件，报告给 TaskArchitect
 
+### 文档更新规则
+- **你不负责项目文档更新**（README.md, CLAUDE.md, PROGRESS.md, DEV_SPEC.md）
+- 项目文档由 TaskArchitect 自己完成，不委派给你
+- **例外**：代码注释和 JavaDoc 由你编写，API 文档（Swagger 注解）由你编写
+
 ### 冲突处理
 - 如果你的任务与其他 Agent 的任务有文件重叠，等待 TaskArchitect 协调
 - 不要尝试"顺便"修复其他问题
