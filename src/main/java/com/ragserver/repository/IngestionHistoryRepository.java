@@ -100,6 +100,26 @@ public interface IngestionHistoryRepository extends JpaRepository<IngestionHisto
     List<IngestionHistory> findByStatusOrderByProcessedAtDesc(IngestionStatus status);
 
     /**
+     * 根据文件哈希查询摄取记录
+     *
+     * <p>用于检查文件是否已经被摄取，避免重复处理。</p>
+     *
+     * <p>示例：</p>
+     * <pre>{@code
+     * String fileHash = calculateHash(file);
+     * Optional<IngestionHistory> existing = repository.findByFileHash(fileHash);
+     * if (existing.isPresent() && existing.get().getStatus() == SUCCESS) {
+     *     log.info("文件已存在，跳过摄取");
+     *     return;
+     * }
+     * }</pre>
+     *
+     * @param fileHash 文件SHA256哈希值
+     * @return 摄取记录（如果存在）
+     */
+    Optional<IngestionHistory> findByFileHash(String fileHash);
+
+    /**
      * 根据文件路径模糊查询
      *
      * <p>支持模糊匹配文件路径，用于搜索功能。</p>

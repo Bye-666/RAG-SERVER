@@ -121,13 +121,25 @@ public class RagController {
 
                 return ResponseEntity.ok(response);
             } else {
-                String errorMsg = result.getFailures().isEmpty() ?
-                    "未知错误" : result.getFailures().get(0).getErrorMessage();
-                return ResponseEntity.ok(Map.of(
-                        "message", "文档摄取失败: " + errorMsg,
-                        "filename", file.getOriginalFilename(),
-                        "status", "FAILED"
-                ));
+                IngestionService.FailureInfo failure = result.getFailures().get(0);
+                String errorMsg = failure.getErrorMessage();
+
+                // 优先使用异常的 ErrorType
+                String errorCode = "UNKNOWN";
+                if (failure.getException() != null &&
+                    failure.getException().getErrorType() == IngestionPipeline.IngestionException.ErrorType.DUPLICATE_FILE) {
+                    errorCode = "DUPLICATE_FILE";
+                } else if (errorMsg != null && errorMsg.contains("文件已存在")) {
+                    errorCode = "DUPLICATE_FILE";  // 备用方案
+                }
+
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("message", "文档摄取失败: " + errorMsg);
+                errorResponse.put("filename", file.getOriginalFilename());
+                errorResponse.put("status", "FAILED");
+                errorResponse.put("errorCode", errorCode);
+
+                return ResponseEntity.ok(errorResponse);
             }
 
         } catch (Exception e) {

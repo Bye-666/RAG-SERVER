@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 文档摄取服务
@@ -91,8 +92,11 @@ public class IngestionService {
             try {
                 IngestionPipeline.IngestionResult result = ingestDocumentInternal(filePath, collectionName);
                 batchResult.addSuccess(result);
+            } catch (IngestionPipeline.IngestionException e) {
+                // 保留异常对象，以便后续获取 ErrorType
+                batchResult.addFailure(filePath.toString(), e.getMessage(), e);
             } catch (Exception e) {
-                batchResult.addFailure(filePath.toString(), e.getMessage());
+                batchResult.addFailure(filePath.toString(), e.getMessage(), null);
             }
         }
 
@@ -105,13 +109,37 @@ public class IngestionService {
     /**
      * 摄取单个文档（内部方法，支持指定Collection）
      */
-    private IngestionPipeline.IngestionResult ingestDocumentInternal(Path filePath, String collectionName) {
+    private IngestionPipeline.IngestionResult ingestDocumentInternal(Path filePath, String collectionName)
+            throws IngestionPipeline.IngestionException {
         try {
+            // 1. 计算文件哈希
+            String fileHash = fileIntegrityService.computeFileHash(filePath);
+
+            // 2. 检查文件是否已存在（去重）
+            Optional<IngestionHistory> existing = historyRepository.findByFileHash(fileHash);
+            if (existing.isPresent() && existing.get().getStatus() == IngestionHistory.IngestionStatus.SUCCESS) {
+                String existingFile = existing.get().getFileName();
+                log.info("文件已存在，跳过摄取: {} (与已存在文件 {} 内容相同, hash: {})",
+                    filePath.getFileName(), existingFile, fileHash);
+                throw new IngestionPipeline.IngestionException(
+                    String.format("文件已存在：与 %s 内容相同，无需重复上传", existingFile),
+                    IngestionPipeline.IngestionException.ErrorType.DUPLICATE_FILE
+                );
+            }
+
+            // 3. 执行摄取
             IngestionPipeline.IngestionResult result = pipeline.ingest(filePath);
-            saveIngestionHistory(filePath, result, collectionName);
+
+            // 4. 保存成功的摄取历史（传入已计算的哈希）
+            saveIngestionHistory(filePath, result, collectionName, fileHash);
+
             return result;
         } catch (IngestionPipeline.IngestionException e) {
             saveFailedIngestionHistory(filePath, e, collectionName);
+            // 直接抛出原始异常，保留 ErrorType 信息
+            throw e;
+        } catch (Exception e) {
+            log.error("摄取文档时发生错误: {}", filePath, e);
             throw new RuntimeException("摄取失败: " + filePath, e);
         }
     }
@@ -119,11 +147,8 @@ public class IngestionService {
     /**
      * 保存成功的摄取历史记录
      */
-    private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result, String collectionName) {
+    private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result, String collectionName, String fileHash) {
         try {
-            // 计算文件哈希
-            String fileHash = fileIntegrityService.computeFileHash(filePath);
-
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
             history.setFileName(filePath.getFileName().toString());
@@ -184,6 +209,10 @@ public class IngestionService {
             failures.add(new FailureInfo(filePath, errorMessage));
         }
 
+        public void addFailure(String filePath, String errorMessage, IngestionPipeline.IngestionException exception) {
+            failures.add(new FailureInfo(filePath, errorMessage, exception));
+        }
+
         public int getTotalFiles() { return totalFiles; }
         public int getSuccessCount() { return successes.size(); }
         public int getFailureCount() { return failures.size(); }
@@ -203,14 +232,21 @@ public class IngestionService {
     public static class FailureInfo {
         private final String filePath;
         private final String errorMessage;
+        private final IngestionPipeline.IngestionException exception;
 
         public FailureInfo(String filePath, String errorMessage) {
+            this(filePath, errorMessage, null);
+        }
+
+        public FailureInfo(String filePath, String errorMessage, IngestionPipeline.IngestionException exception) {
             this.filePath = filePath;
             this.errorMessage = errorMessage;
+            this.exception = exception;
         }
 
         public String getFilePath() { return filePath; }
         public String getErrorMessage() { return errorMessage; }
+        public IngestionPipeline.IngestionException getException() { return exception; }
 
         @Override
         public String toString() {

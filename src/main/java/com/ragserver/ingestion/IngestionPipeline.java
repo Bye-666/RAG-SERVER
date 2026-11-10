@@ -464,21 +464,42 @@ public class IngestionPipeline {
     public static class IngestionException extends Exception {
         private final IngestionResult result;
         private final String suggestion;
+        private final ErrorType errorType;
+
+        public enum ErrorType {
+            LOAD_FAILED,           // 文档加载失败
+            SPLIT_FAILED,          // 切分失败
+            REFINE_FAILED,         // 精炼失败
+            EMBEDDING_FAILED,      // 向量化失败
+            STORAGE_FAILED,        // 存储失败
+            DUPLICATE_FILE,        // 重复文件
+            UNKNOWN                // 未知错误
+        }
 
         public IngestionException(String message, Throwable cause, IngestionResult result) {
             super(message, cause);
             this.result = result;
             this.suggestion = null;
+            this.errorType = ErrorType.UNKNOWN;
         }
 
         public IngestionException(String message, Throwable cause, String suggestion) {
             super(message, cause);
             this.result = null;
             this.suggestion = suggestion;
+            this.errorType = ErrorType.UNKNOWN;
+        }
+
+        public IngestionException(String message, ErrorType errorType) {
+            super(message);
+            this.result = null;
+            this.suggestion = null;
+            this.errorType = errorType;
         }
 
         public IngestionResult getResult() { return result; }
         public String getSuggestion() { return suggestion; }
+        public ErrorType getErrorType() { return errorType; }
 
         @Override
         public String getMessage() {

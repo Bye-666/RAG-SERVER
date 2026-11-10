@@ -247,71 +247,90 @@
 
                 const result = await response.json();
 
-                // 构建耗时统计显示
-                let timingHtml = '';
-                if (result.timing) {
-                    const timing = result.timing;
-                    const totalTime = timing.total || 0;
+                // 检查是否是重复文件错误（使用 errorCode，更可靠）
+                if (result?.status === 'FAILED' && result?.errorCode === 'DUPLICATE_FILE') {
+                    // 重复文件：显示黄色警告
+                    document.getElementById('upload-results').innerHTML += `
+                        <div style="padding: 10px; margin-top: 10px; background: #fff3cd; border-radius: 4px; color: #856404; border-left: 4px solid #ffc107;">
+                            ⚠ ${file.name}: 文件已存在，与已上传的文件内容相同，跳过
+                        </div>
+                    `;
+                } else if (result?.status === 'SUCCESS' && result?.chunkCount > 0) {
+                    // 成功上传：显示绿色成功消息和耗时统计
+                    // 构建耗时统计显示
+                    let timingHtml = '';
+                    if (result.timing) {
+                        const timing = result.timing;
+                        const totalTime = timing.total || 0;
 
-                    // 计算各阶段百分比
-                    const percentages = {
-                        loading: ((timing.loading / totalTime) * 100).toFixed(1),
-                        splitting: ((timing.splitting / totalTime) * 100).toFixed(1),
-                        refining: ((timing.refining / totalTime) * 100).toFixed(1),
-                        enriching: ((timing.enriching / totalTime) * 100).toFixed(1),
-                        embedding: ((timing.embedding / totalTime) * 100).toFixed(1),
-                        storage: ((timing.storage / totalTime) * 100).toFixed(1)
-                    };
+                        // 计算各阶段百分比
+                        const percentages = {
+                            loading: ((timing.loading / totalTime) * 100).toFixed(1),
+                            splitting: ((timing.splitting / totalTime) * 100).toFixed(1),
+                            refining: ((timing.refining / totalTime) * 100).toFixed(1),
+                            enriching: ((timing.enriching / totalTime) * 100).toFixed(1),
+                            embedding: ((timing.embedding / totalTime) * 100).toFixed(1),
+                            storage: ((timing.storage / totalTime) * 100).toFixed(1)
+                        };
 
-                    timingHtml = `
-                        <div class="timing-stats">
-                            <div class="timing-header">⏱️ 耗时统计：总耗时 ${totalTime}ms (${(totalTime/1000).toFixed(2)}秒)</div>
+                        timingHtml = `
+                            <div class="timing-stats">
+                                <div class="timing-header">⏱️ 耗时统计：总耗时 ${totalTime}ms (${(totalTime/1000).toFixed(2)}秒)</div>
 
-                            <div class="timing-bar-container">
-                                ${timing.loading > 0 ? `<div class="timing-bar timing-bar-loading" style="width: ${percentages.loading}%;" title="文档加载: ${timing.loading}ms">${percentages.loading >= 5 ? percentages.loading + '%' : ''}</div>` : ''}
-                                ${timing.splitting > 0 ? `<div class="timing-bar timing-bar-splitting" style="width: ${percentages.splitting}%;" title="数据切分: ${timing.splitting}ms">${percentages.splitting >= 5 ? percentages.splitting + '%' : ''}</div>` : ''}
-                                ${timing.refining > 0 ? `<div class="timing-bar timing-bar-refining" style="width: ${percentages.refining}%;" title="降噪处理: ${timing.refining}ms">${percentages.refining >= 5 ? percentages.refining + '%' : ''}</div>` : ''}
-                                ${timing.enriching > 0 ? `<div class="timing-bar timing-bar-enriching" style="width: ${percentages.enriching}%;" title="元数据增强: ${timing.enriching}ms">${percentages.enriching >= 5 ? percentages.enriching + '%' : ''}</div>` : ''}
-                                ${timing.embedding > 0 ? `<div class="timing-bar timing-bar-embedding" style="width: ${percentages.embedding}%;" title="向量化: ${timing.embedding}ms">${percentages.embedding >= 5 ? percentages.embedding + '%' : ''}</div>` : ''}
-                                ${timing.storage > 0 ? `<div class="timing-bar timing-bar-storage" style="width: ${percentages.storage}%;" title="存储入库: ${timing.storage}ms">${percentages.storage >= 5 ? percentages.storage + '%' : ''}</div>` : ''}
+                                <div class="timing-bar-container">
+                                    ${timing.loading > 0 ? `<div class="timing-bar timing-bar-loading" style="width: ${percentages.loading}%;" title="文档加载: ${timing.loading}ms">${percentages.loading >= 5 ? percentages.loading + '%' : ''}</div>` : ''}
+                                    ${timing.splitting > 0 ? `<div class="timing-bar timing-bar-splitting" style="width: ${percentages.splitting}%;" title="数据切分: ${timing.splitting}ms">${percentages.splitting >= 5 ? percentages.splitting + '%' : ''}</div>` : ''}
+                                    ${timing.refining > 0 ? `<div class="timing-bar timing-bar-refining" style="width: ${percentages.refining}%;" title="降噪处理: ${timing.refining}ms">${percentages.refining >= 5 ? percentages.refining + '%' : ''}</div>` : ''}
+                                    ${timing.enriching > 0 ? `<div class="timing-bar timing-bar-enriching" style="width: ${percentages.enriching}%;" title="元数据增强: ${timing.enriching}ms">${percentages.enriching >= 5 ? percentages.enriching + '%' : ''}</div>` : ''}
+                                    ${timing.embedding > 0 ? `<div class="timing-bar timing-bar-embedding" style="width: ${percentages.embedding}%;" title="向量化: ${timing.embedding}ms">${percentages.embedding >= 5 ? percentages.embedding + '%' : ''}</div>` : ''}
+                                    ${timing.storage > 0 ? `<div class="timing-bar timing-bar-storage" style="width: ${percentages.storage}%;" title="存储入库: ${timing.storage}ms">${percentages.storage >= 5 ? percentages.storage + '%' : ''}</div>` : ''}
+                                </div>
+
+                                <div class="timing-details">
+                                    <div class="timing-item">
+                                        <span class="timing-dot timing-dot-loading"></span>
+                                        文档加载: ${timing.loading}ms (${percentages.loading}%)
+                                    </div>
+                                    <div class="timing-item">
+                                        <span class="timing-dot timing-dot-splitting"></span>
+                                        数据切分: ${timing.splitting}ms (${percentages.splitting}%)
+                                    </div>
+                                    <div class="timing-item">
+                                        <span class="timing-dot timing-dot-refining"></span>
+                                        降噪处理: ${timing.refining}ms (${percentages.refining}%)
+                                    </div>
+                                    <div class="timing-item">
+                                        <span class="timing-dot timing-dot-enriching"></span>
+                                        元数据增强: ${timing.enriching}ms (${percentages.enriching}%)
+                                    </div>
+                                    <div class="timing-item">
+                                        <span class="timing-dot timing-dot-embedding"></span>
+                                        向量化: ${timing.embedding}ms (${percentages.embedding}%)
+                                    </div>
+                                    <div class="timing-item">
+                                        <span class="timing-dot timing-dot-storage"></span>
+                                        存储入库: ${timing.storage}ms (${percentages.storage}%)
+                                    </div>
+                                </div>
                             </div>
+                        `;
+                    }
 
-                            <div class="timing-details">
-                                <div class="timing-item">
-                                    <span class="timing-dot timing-dot-loading"></span>
-                                    文档加载: ${timing.loading}ms (${percentages.loading}%)
-                                </div>
-                                <div class="timing-item">
-                                    <span class="timing-dot timing-dot-splitting"></span>
-                                    数据切分: ${timing.splitting}ms (${percentages.splitting}%)
-                                </div>
-                                <div class="timing-item">
-                                    <span class="timing-dot timing-dot-refining"></span>
-                                    降噪处理: ${timing.refining}ms (${percentages.refining}%)
-                                </div>
-                                <div class="timing-item">
-                                    <span class="timing-dot timing-dot-enriching"></span>
-                                    元数据增强: ${timing.enriching}ms (${percentages.enriching}%)
-                                </div>
-                                <div class="timing-item">
-                                    <span class="timing-dot timing-dot-embedding"></span>
-                                    向量化: ${timing.embedding}ms (${percentages.embedding}%)
-                                </div>
-                                <div class="timing-item">
-                                    <span class="timing-dot timing-dot-storage"></span>
-                                    存储入库: ${timing.storage}ms (${percentages.storage}%)
-                                </div>
-                            </div>
+                    document.getElementById('upload-results').innerHTML += `
+                        <div style="padding: 10px; margin-top: 10px; background: #d4edda; border-radius: 4px; color: #155724;">
+                            ✓ ${file.name}: 成功摄取 ${result.chunkCount || 0} 个chunks
+                            ${timingHtml}
+                        </div>
+                    `;
+                } else {
+                    // 其他失败情况：显示红色错误消息
+                    const errorMsg = result.message || '未知错误';
+                    document.getElementById('upload-results').innerHTML += `
+                        <div style="padding: 10px; margin-top: 10px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+                            ✗ ${file.name}: 摄取失败 - ${errorMsg}
                         </div>
                     `;
                 }
-
-                document.getElementById('upload-results').innerHTML += `
-                    <div style="padding: 10px; margin-top: 10px; background: #d4edda; border-radius: 4px; color: #155724;">
-                        ✓ ${file.name}: 成功摄取 ${result.chunkCount || 0} 个chunks
-                        ${timingHtml}
-                    </div>
-                `;
 
                 const progress = (index / total) * 100;
                 document.getElementById('progress-bar').style.width = progress + '%';
