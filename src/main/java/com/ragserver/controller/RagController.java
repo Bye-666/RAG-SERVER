@@ -84,8 +84,20 @@ public class RagController {
                 file.getOriginalFilename(), file.getSize(), collection);
 
         try {
-            // 保存文件到临时目录
-            java.nio.file.Path tempFile = java.nio.file.Files.createTempFile("upload_", ".pdf");
+            // 1. 获取项目根目录并定义文档存储目录
+            java.nio.file.Path projectRoot = java.nio.file.Paths.get("").toAbsolutePath();
+            java.nio.file.Path documentsDir = projectRoot.resolve("data").resolve("documents");
+
+            // 2. 确保目录存在
+            if (!java.nio.file.Files.exists(documentsDir)) {
+                java.nio.file.Files.createDirectories(documentsDir);
+            }
+
+            // 3. 生成唯一文件名
+            String fileName = "upload_" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            java.nio.file.Path tempFile = documentsDir.resolve(fileName);
+
+            // 4. 保存文件
             file.transferTo(tempFile.toFile());
 
             // 调用摄取服务，传递collection参数
