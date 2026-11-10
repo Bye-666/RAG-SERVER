@@ -362,10 +362,15 @@
 
                 const result = await response.json();
 
+                // 使用 marked.js 渲染 Markdown
+                let renderedAnswer = result.answer ? marked.parse(result.answer) : '无回答';
+
                 // 构建答案显示
                 let answerHtml = `
-                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
-                        ${result.answer || '无回答'}
+                    <div style="padding: 20px; background: white; border-radius: 8px; line-height: 1.8; font-size: 15px; border: 1px solid #e0e0e0;">
+                        <div class="markdown-body">
+                            ${renderedAnswer}
+                        </div>
                     </div>
                 `;
 
