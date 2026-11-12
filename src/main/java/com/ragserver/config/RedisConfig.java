@@ -46,6 +46,22 @@ import java.time.Duration;
 public class RedisConfig {
 
     /**
+     * 配置全局 ObjectMapper（用于 HTTP 响应序列化）
+     *
+     * <p>自动注册所有 Jackson 模块，支持 Java 8 日期时间类型。</p>
+     *
+     * @return 配置好的 ObjectMapper
+     */
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        // 自动发现并注册所有 Jackson 模块（包括 JSR310、Jdk8、Parameter Names）
+        mapper.findAndRegisterModules();
+        return mapper;
+    }
+
+    /**
      * 配置 RedisTemplate
      *
      * <p>用于手动操作 Redis 数据。</p>
@@ -80,6 +96,7 @@ public class RedisConfig {
 
         // 配置 Jackson2 序列化器
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules(); // 自动注册 JSR310 等模块，支持 Java 8 日期时间
         objectMapper.activateDefaultTyping(
             LaissezFaireSubTypeValidator.instance,
             ObjectMapper.DefaultTyping.NON_FINAL,
@@ -138,6 +155,7 @@ public class RedisConfig {
     public CacheManager redisCacheManager(RedisConnectionFactory factory) {
         // 配置 JSON 序列化
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules(); // 自动注册 JSR310 等模块，支持 Java 8 日期时间
         objectMapper.activateDefaultTyping(
             LaissezFaireSubTypeValidator.instance,
             ObjectMapper.DefaultTyping.NON_FINAL,
