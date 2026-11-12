@@ -2,6 +2,7 @@ package com.ragserver.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -58,6 +59,10 @@ public class RedisConfig {
         ObjectMapper mapper = new ObjectMapper();
         // 自动发现并注册所有 Jackson 模块（包括 JSR310、Jdk8、Parameter Names）
         mapper.findAndRegisterModules();
+
+        // 配置日期序列化为 ISO-8601 字符串，而不是时间戳数组
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
         return mapper;
     }
 

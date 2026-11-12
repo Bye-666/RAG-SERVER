@@ -1,5 +1,7 @@
 package com.ragserver.ai.dashscope;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.util.List;
 
@@ -31,6 +33,7 @@ import java.util.List;
  * @since 1.0.0
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EmbeddingResponse {
 
     /**
@@ -84,11 +87,13 @@ public class EmbeddingResponse {
         /**
          * 输入token数
          */
+        @JsonProperty("prompt_tokens")
         private Integer promptTokens;
 
         /**
          * 总token数（Embedding API中 = prompt_tokens）
          */
+        @JsonProperty("total_tokens")
         private Integer totalTokens;
     }
 

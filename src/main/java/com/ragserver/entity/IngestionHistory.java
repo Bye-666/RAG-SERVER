@@ -199,6 +199,28 @@ public class IngestionHistory {
     private Integer chunkCount;
 
     /**
+     * 处理耗时（毫秒）
+     *
+     * <p>记录文档摄取处理的总耗时，从开始到完成（成功或失败）。</p>
+     *
+     * <p>用于：</p>
+     * <ul>
+     *   <li>性能监控：评估摄取效率</li>
+     *   <li>用户体验：显示处理时间</li>
+     *   <li>优化参考：识别慢速文档</li>
+     * </ul>
+     *
+     * <p>示例值：</p>
+     * <ul>
+     *   <li>1250 = 1.25秒</li>
+     *   <li>5230 = 5.23秒</li>
+     *   <li>30000 = 30秒</li>
+     * </ul>
+     */
+    @Column(name = "processing_time_ms")
+    private Long processingTimeMs;
+
+    /**
      * Collection名称
      *
      * <p>文档所属的Collection，用于组织和分类文档。</p>

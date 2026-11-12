@@ -35,7 +35,7 @@ import java.util.List;
  * @since 1.0.0
  */
 @Repository
-public interface QueryHistoryRepository extends JpaRepository<QueryHistory, Long> {
+public interface QueryHistoryRepository extends JpaRepository<QueryHistory, String> {
 
     /**
      * 查询最近的N条记录

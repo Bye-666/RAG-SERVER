@@ -739,7 +739,7 @@
                             <td>${escapeHtml(item.collectionName || 'default')}</td>
                             <td><span class="badge badge-${item.status === 'SUCCESS' ? 'success' : item.status === 'FAILED' ? 'danger' : 'warning'}">${item.status}</span></td>
                             <td>${item.chunkCount || 0}</td>
-                            <td>-</td>
+                            <td>${item.processingTimeMs ? (item.processingTimeMs / 1000).toFixed(2) + 's' : '-'}</td>
                             <td>${item.processedAt ? new Date(item.processedAt).toLocaleString('zh-CN') : '-'}</td>
                             <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.errorMsg || '')}">${escapeHtml(item.errorMsg || '-')}</td>
                         </tr>

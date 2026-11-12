@@ -134,7 +134,7 @@ public class QueryHistoryController {
     })
     public ResponseEntity<Map<String, Object>> getHistoryById(
             @Parameter(description = "历史记录ID", required = true)
-            @PathVariable Long id) {
+            @PathVariable String id) {
         log.info("获取查询历史详情，id={}", id);
 
         try {

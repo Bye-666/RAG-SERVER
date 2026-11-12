@@ -20,15 +20,26 @@ import java.time.LocalDateTime;
  * <h3>数据库表结构</h3>
  * <pre>
  * CREATE TABLE query_history (
- *   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+ *   query_id VARCHAR(64) PRIMARY KEY,
+ *   query_text TEXT NOT NULL,
  *   question VARCHAR(1000) NOT NULL,
  *   answer TEXT,
- *   top_k INT,
- *   enable_rerank BOOLEAN,
- *   collection_name VARCHAR(255),
+ *   collection_name VARCHAR(128),
+ *   top_k INT DEFAULT 10,
+ *   enable_rerank BOOLEAN DEFAULT FALSE,
+ *   result_count INT,
+ *   retrieved_docs_count INT,
  *   response_time_ms BIGINT,
- *   created_at TIMESTAMP,
- *   status VARCHAR(50)
+ *   user_id VARCHAR(128),
+ *   session_id VARCHAR(128),
+ *   query_type VARCHAR(50),
+ *   status VARCHAR(50) NOT NULL,
+ *   error_message TEXT,
+ *   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ *   INDEX idx_collection (collection_name),
+ *   INDEX idx_user (user_id),
+ *   INDEX idx_created_at (created_at),
+ *   INDEX idx_status (status)
  * );
  * </pre>
  *
@@ -46,11 +57,17 @@ import java.time.LocalDateTime;
 public class QueryHistory {
 
     /**
-     * 主键ID（自增）
+     * 主键ID（UUID）
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "query_id", length = 64)
+    private String id;
+
+    /**
+     * 查询文本（数据库字段）
+     */
+    @Column(name = "query_text", nullable = false, columnDefinition = "TEXT")
+    private String queryText;
 
     /**
      * 用户问题
@@ -120,6 +137,24 @@ public class QueryHistory {
     private Integer retrievedDocsCount;
 
     /**
+     * 实际返回的结果数量
+     */
+    @Column(name = "result_count")
+    private Integer resultCount;
+
+    /**
+     * 用户ID
+     */
+    @Column(name = "user_id", length = 128)
+    private String userId;
+
+    /**
+     * 会话ID
+     */
+    @Column(name = "session_id", length = 128)
+    private String sessionId;
+
+    /**
      * 查询类型
      *
      * <p>可能的值：</p>
@@ -145,7 +180,9 @@ public class QueryHistory {
     public static QueryHistory create(String question, String answer, Integer topK,
                                      Boolean enableRerank, Long responseTimeMs, String status) {
         QueryHistory history = new QueryHistory();
+        history.id = java.util.UUID.randomUUID().toString();
         history.question = question;
+        history.queryText = question; // 同时设置 query_text 字段
         history.answer = answer;
         history.topK = topK;
         history.enableRerank = enableRerank;
@@ -165,7 +202,9 @@ public class QueryHistory {
      */
     public static QueryHistory createFailed(String question, String errorMessage) {
         QueryHistory history = new QueryHistory();
+        history.id = java.util.UUID.randomUUID().toString();
         history.question = question;
+        history.queryText = question; // 同时设置 query_text 字段
         history.status = "FAILED";
         history.errorMessage = errorMessage;
         history.createdAt = LocalDateTime.now();

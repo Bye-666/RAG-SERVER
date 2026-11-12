@@ -111,6 +111,9 @@ public class IngestionService {
      */
     private IngestionPipeline.IngestionResult ingestDocumentInternal(Path filePath, String collectionName)
             throws IngestionPipeline.IngestionException {
+        // 记录开始时间，用于计算处理耗时
+        long startTime = System.currentTimeMillis();
+
         try {
             // 1. 计算文件哈希
             String fileHash = fileIntegrityService.computeFileHash(filePath);
@@ -130,12 +133,17 @@ public class IngestionService {
             // 3. 执行摄取
             IngestionPipeline.IngestionResult result = pipeline.ingest(filePath);
 
-            // 4. 保存成功的摄取历史（传入已计算的哈希）
-            saveIngestionHistory(filePath, result, collectionName, fileHash);
+            // 4. 计算处理耗时
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            // 5. 保存成功的摄取历史（传入已计算的哈希和耗时）
+            saveIngestionHistory(filePath, result, collectionName, fileHash, processingTime);
 
             return result;
         } catch (IngestionPipeline.IngestionException e) {
-            saveFailedIngestionHistory(filePath, e, collectionName);
+            // 失败时也记录耗时
+            long processingTime = System.currentTimeMillis() - startTime;
+            saveFailedIngestionHistory(filePath, e, collectionName, processingTime);
             // 直接抛出原始异常，保留 ErrorType 信息
             throw e;
         } catch (Exception e) {
@@ -147,7 +155,8 @@ public class IngestionService {
     /**
      * 保存成功的摄取历史记录
      */
-    private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result, String collectionName, String fileHash) {
+    private void saveIngestionHistory(Path filePath, IngestionPipeline.IngestionResult result,
+                                     String collectionName, String fileHash, long processingTimeMs) {
         try {
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
@@ -155,12 +164,13 @@ public class IngestionService {
             history.setFileHash(fileHash);
             history.setFileSize(filePath.toFile().length());
             history.setChunkCount(result.getChunksProcessed());
+            history.setProcessingTimeMs(processingTimeMs);
             history.setStatus(IngestionHistory.IngestionStatus.SUCCESS);
             history.setProcessedAt(Instant.now());
             history.setCollectionName(collectionName);
 
             historyRepository.save(history);
-            log.debug("已保存摄取历史记录: {}", history.getFileHash());
+            log.debug("已保存摄取历史记录: {} (耗时: {}ms)", history.getFileHash(), processingTimeMs);
         } catch (Exception e) {
             log.error("保存摄取历史失败: {}", filePath, e);
         }
@@ -169,7 +179,8 @@ public class IngestionService {
     /**
      * 保存失败的摄取历史记录
      */
-    private void saveFailedIngestionHistory(Path filePath, IngestionPipeline.IngestionException e, String collectionName) {
+    private void saveFailedIngestionHistory(Path filePath, IngestionPipeline.IngestionException e,
+                                          String collectionName, long processingTimeMs) {
         try {
             IngestionHistory history = new IngestionHistory();
             history.setFilePath(filePath.toString());
@@ -177,13 +188,14 @@ public class IngestionService {
             history.setFileHash("FAILED_" + System.currentTimeMillis());
             history.setFileSize(filePath.toFile().length());
             history.setChunkCount(0);
+            history.setProcessingTimeMs(processingTimeMs);
             history.setStatus(IngestionHistory.IngestionStatus.FAILED);
             history.setProcessedAt(Instant.now());
             history.setErrorMsg(e.getMessage());
             history.setCollectionName(collectionName);
 
             historyRepository.save(history);
-            log.debug("已保存失败的摄取历史记录: {}", filePath);
+            log.debug("已保存失败的摄取历史记录: {} (耗时: {}ms)", filePath, processingTimeMs);
         } catch (Exception ex) {
             log.error("保存失败历史记录失败: {}", filePath, ex);
         }

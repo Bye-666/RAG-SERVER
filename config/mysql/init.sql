@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS ingestion_history (
     collection_name VARCHAR(128) COMMENT 'Collection名称',
     status VARCHAR(20) NOT NULL COMMENT '状态：SUCCESS, FAILED, PROCESSING',
     chunk_count INT COMMENT 'Chunk数量',
+    processing_time_ms BIGINT COMMENT '处理耗时（毫秒）',
     error_msg TEXT COMMENT '错误信息',
     processed_at TIMESTAMP NULL COMMENT '处理时间',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -55,17 +56,24 @@ COMMENT='图片索引表';
 CREATE TABLE IF NOT EXISTS query_history (
     query_id VARCHAR(64) PRIMARY KEY COMMENT '查询ID',
     query_text TEXT NOT NULL COMMENT '查询文本',
+    question VARCHAR(1000) NOT NULL COMMENT '用户问题',
+    answer TEXT COMMENT '生成的答案',
     collection_name VARCHAR(128) COMMENT 'Collection名称',
     top_k INT DEFAULT 10 COMMENT '返回结果数量',
     enable_rerank BOOLEAN DEFAULT FALSE COMMENT '是否启用Rerank',
     result_count INT COMMENT '实际返回结果数量',
-    response_time_ms INT COMMENT '响应时间（毫秒）',
+    retrieved_docs_count INT COMMENT '检索到的文档数量',
+    response_time_ms BIGINT COMMENT '响应时间（毫秒）',
     user_id VARCHAR(128) COMMENT '用户ID（可选）',
     session_id VARCHAR(128) COMMENT '会话ID（可选）',
+    query_type VARCHAR(50) COMMENT '查询类型',
+    status VARCHAR(50) NOT NULL COMMENT '查询状态',
+    error_message TEXT COMMENT '错误信息',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '查询时间',
     INDEX idx_collection (collection_name),
     INDEX idx_user (user_id),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='查询历史记录表';
 
