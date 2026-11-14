@@ -362,11 +362,80 @@
             document.getElementById('query-sources').innerHTML = '';
 
             if (enableStream) {
-                // 流式查询
+                // 流式 RAG 模式：检索 + LLM 生成
                 executeStreamQuery(query, topK, enableRerank);
             } else {
-                // 普通查询
-                executeNormalQuery(query, topK, enableRerank);
+                // 纯检索模式：只显示检索文档
+                executeRetrieveOnly(query, topK, enableRerank);
+            }
+        }
+
+        // 纯检索模式（不生成答案）
+        async function executeRetrieveOnly(query, topK, enableRerank) {
+            try {
+                const response = await fetch('/api/retrieve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: query, topK, enableRerank })
+                });
+
+                const result = await response.json();
+
+                // 调试日志
+                console.log('Retrieve result:', result);
+                console.log('Sources:', result.sources);
+
+                // 显示提示信息：纯检索模式
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 20px; background: #e3f2fd; border-radius: 8px; text-align: center; border-left: 4px solid #2196f3;">
+                        <p style="color: #1565c0; font-size: 15px; margin: 0; font-weight: 500;">
+                            ℹ️ 纯检索模式：已找到相关文档，勾选"流式输出"可生成答案
+                        </p>
+                    </div>
+                `;
+
+                // 显示检索文档
+                let sourcesHtml = '';
+                if (result.sources && result.sources.length > 0) {
+                    // 只使用 retrieval.total，不要 fallback 到 timing.total（那是总耗时）
+                    const retrievalTime = result.timing?.retrieval?.total || 0;
+                    sourcesHtml = `<div style="color: #666; font-size: 14px; margin-bottom: 12px; font-weight: 500;">
+                        ✓ 检索到 ${result.sources.length} 个相关文档（耗时: ${retrievalTime}ms）
+                    </div>`;
+
+                    result.sources.forEach((src, index) => {
+                        const metadata = src.metadata || {};
+                        const fileName = metadata.file_name || metadata.source || '未知来源';
+                        const page = metadata.page ? `第${metadata.page}页` : '';
+
+                        sourcesHtml += `
+                            <div style="background: white; padding: 16px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="font-weight: 600; color: #1976d2; margin-bottom: 8px; font-size: 15px;">
+                                    [${index + 1}] ${escapeHtml(src.id)}
+                                </div>
+                                <div style="color: #666; font-size: 13px; margin-bottom: 8px;">
+                                    📄 来源: ${escapeHtml(fileName)} ${page}
+                                </div>
+                                <div style="color: #333; font-size: 14px; line-height: 1.6; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                                    ${escapeHtml(src.text.substring(0, 400))}${src.text.length > 400 ? '...' : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    sourcesHtml = '<div style="color: #999; padding: 20px; text-align: center;">未检索到相关文档</div>';
+                }
+
+                document.getElementById('query-sources').innerHTML = sourcesHtml;
+
+            } catch (error) {
+                console.error('检索失败:', error);
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 16px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+                        检索失败: ${escapeHtml(error.message)}
+                    </div>
+                `;
+                document.getElementById('query-sources').innerHTML = '';
             }
         }
 
@@ -583,7 +652,7 @@
                 document.getElementById('query-answer').innerHTML = `
                     <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
                         <div style="color: #666; font-size: 14px; margin-bottom: 8px;">⚡ 正在实时生成答案...</div>
-                        <div id="stream-answer" style="min-height: 40px;"></div>
+                        <div id="stream-answer" class="markdown-body" style="min-height: 40px;"></div>
                     </div>
                 `;
 
@@ -628,7 +697,9 @@
                 // 显示最终答案和耗时统计
                 document.getElementById('query-answer').innerHTML = `
                     <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
-                        ${formatAnswer(accumulatedText)}
+                        <div class="markdown-body">
+                            ${formatAnswer(accumulatedText)}
+                        </div>
                     </div>
                     <div style="margin-top: 12px; padding: 8px; background: rgba(46, 204, 113, 0.1); border-radius: 4px; font-size: 12px;">
                         <strong>⏱️ 耗时统计：</strong>
@@ -647,26 +718,33 @@
             }
         }
 
-        // 格式化答案（支持基本的markdown样式）
+        // 格式化答案（使用 marked.js 渲染 Markdown）
         function formatAnswer(text) {
-            // 转义HTML
-            let formatted = escapeHtml(text);
+            if (!text) return '';
 
-            // 暂时不处理引用来源，保持完整显示
+            // 预处理：修复非标准的列表格式
+            // 将 "数字." 或 "数字:" 开头的内容转换为标准列表格式
+            let preprocessed = text
+                // 修复 "1.:" 或 "1:" 这样的格式
+                .replace(/(\d+)\.?:\s*/g, '\n$1. ')
+                // 修复同一行内的多个列表项 "1. xxx；2. yyy"
+                .replace(/；\s*(\d+)\.\s*/g, '\n$1. ')
+                // 修复 "###数字." 格式（LLM 误用标题）
+                .replace(/###\s*(\d+)\.\s*/g, '\n$1. ')
+                // 清理多余的空行
+                .replace(/\n{3,}/g, '\n\n');
 
-            // 处理换行
-            formatted = formatted.replace(/\n/g, '<br>');
-
-            // 处理加粗 **text**
-            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-            // 处理列表项
-            formatted = formatted.replace(/^(\d+)\.\s/gm, '<br><strong>$1.</strong> ');
-
-            // 处理引用块 > text
-            formatted = formatted.replace(/&gt;\s*(.+?)<br>/g, '<blockquote style="border-left: 3px solid #3498db; padding-left: 12px; margin: 8px 0; color: #555;">$1</blockquote>');
-
-            return formatted;
+            // 使用 marked.js 渲染 Markdown
+            try {
+                return marked.parse(preprocessed);
+            } catch (e) {
+                console.error('Markdown 解析失败:', e);
+                // 降级处理：简单的文本格式化
+                let formatted = escapeHtml(preprocessed);
+                formatted = formatted.replace(/\n/g, '<br>');
+                formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                return formatted;
+            }
         }
 
         // 历史记录相关变量

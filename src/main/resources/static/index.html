@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAG-SERVER Dashboard</title>
     <link rel="stylesheet" href="/css/style.css">
-    <!-- Markdown 样式 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.0/github-markdown.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <!-- Markdown 样式和解析器 - 本地资源 -->
+    <link rel="stylesheet" href="/lib/github-markdown.min.css">
+    <script src="/lib/marked.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -190,8 +190,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="stream-input" checked> 流式输出
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="stream-input" style="margin-right: 8px;">
+                            <span>生成答案（勾选后调用LLM，未勾选仅显示检索文档）</span>
                         </label>
                     </div>
 

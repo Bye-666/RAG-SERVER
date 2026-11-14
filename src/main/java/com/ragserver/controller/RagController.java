@@ -1,6 +1,7 @@
 package com.ragserver.controller;
 
 import com.ragserver.ingestion.IngestionPipeline;
+import com.ragserver.retrieval.HybridRetriever;
 import com.ragserver.retrieval.model.Document;
 import com.ragserver.service.DocumentService;
 import com.ragserver.service.IngestionService;
@@ -44,15 +45,18 @@ public class RagController {
     private final DocumentService documentService;
     private final RagService ragService;
     private final CacheManager cacheManager;
+    private final HybridRetriever hybridRetriever;
 
     public RagController(IngestionService ingestionService,
                         DocumentService documentService,
                         RagService ragService,
-                        CacheManager cacheManager) {
+                        CacheManager cacheManager,
+                        HybridRetriever hybridRetriever) {
         this.ingestionService = ingestionService;
         this.documentService = documentService;
         this.ragService = ragService;
         this.cacheManager = cacheManager;
+        this.hybridRetriever = hybridRetriever;
     }
 
     /**
@@ -299,6 +303,99 @@ public class RagController {
             log.error("删除文档失败：id={}, error={}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "删除文档失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 纯检索API（不生成答案）
+     *
+     * @param request 检索请求
+     * @return 检索结果
+     */
+    @PostMapping("/retrieve")
+    @Operation(
+        summary = "纯文档检索",
+        description = "只执行向量检索，不调用LLM生成答案。用于快速预览相关文档，节省Token消耗"
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "检索成功"),
+        @ApiResponse(responseCode = "400", description = "参数错误")
+    })
+    public ResponseEntity<Map<String, Object>> retrieve(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "检索请求参数",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                        {
+                          "question": "什么是 RAG？",
+                          "topK": 5,
+                          "enableRerank": false
+                        }
+                        """)
+                )
+            )
+            @RequestBody Map<String, Object> request) {
+        String question = (String) request.get("question");
+        Integer topK = request.containsKey("topK") ? (Integer) request.get("topK") : 10;
+        Boolean enableRerank = request.containsKey("enableRerank") ? (Boolean) request.get("enableRerank") : false;
+
+        log.info("纯检索：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
+
+        // 输入校验
+        if (question == null || question.trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "查询问题不能为空"));
+        }
+
+        if (topK < 1 || topK > 20) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "topK必须在1-20之间"));
+        }
+
+        try {
+            long startTime = System.currentTimeMillis();
+
+            // 执行检索（只检索，不生成答案）
+            HybridRetriever.RetrievalResult retrievalResult = hybridRetriever.retrieve(question, topK, enableRerank);
+            List<Document> documents = retrievalResult.getDocuments();
+
+            long retrievalTime = System.currentTimeMillis() - startTime;
+
+            // 构建详细的检索耗时统计
+            Map<String, Object> retrievalTiming = new HashMap<>();
+            retrievalTiming.put("denseSearch", retrievalResult.getDenseSearchDurationMs());
+            retrievalTiming.put("sparseSearch", retrievalResult.getSparseSearchDurationMs());
+            retrievalTiming.put("rrfFusion", retrievalResult.getRrfFusionDurationMs());
+            retrievalTiming.put("reranker", retrievalResult.getRerankerDurationMs());
+            retrievalTiming.put("total", retrievalTime);
+
+            // 构建检索文档信息
+            List<Map<String, Object>> sources = new ArrayList<>();
+            for (Document doc : documents) {
+                Map<String, Object> source = new HashMap<>();
+                source.put("id", doc.getId());
+                source.put("text", doc.getText());
+                source.put("metadata", doc.getMetadata());
+                sources.add(source);
+            }
+
+            // 构建返回结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("question", question);
+            result.put("sources", sources);
+            result.put("timing", Map.of("retrieval", retrievalTiming, "total", retrievalTime));
+            result.put("mode", "retrieve_only");
+
+            log.info("纯检索完成：返回{}个文档，耗时{}ms", sources.size(), retrievalTime);
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            log.error("纯检索失败：question={}, error={}", question, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "检索失败：" + e.getMessage()));
         }
     }
 
