@@ -598,7 +598,48 @@
             try {
                 const streamStartTime = Date.now();
 
-                // 第一步：先用普通查询获取检索文档
+                // 步骤0：先检查是否有缓存的完整答案
+                document.getElementById('query-answer').innerHTML = `
+                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
+                        <div style="color: #666; font-size: 14px; margin-bottom: 8px;">🔍 正在检索...</div>
+                    </div>
+                `;
+
+                const cacheCheckResponse = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: query, topK, enableRerank })
+                });
+
+                const cacheResult = await cacheCheckResponse.json();
+
+                // 如果有缓存的答案（检查耗时是否很短，判断为缓存命中）
+                if (cacheResult.answer && cacheResult.timing?.total < 100) {
+                    // 缓存命中，直接显示答案
+                    const timingData = {
+                        denseSearch: cacheResult.timing?.retrieval?.denseSearch || 0,
+                        sparseSearch: cacheResult.timing?.retrieval?.sparseSearch || 0,
+                        rrfFusion: cacheResult.timing?.retrieval?.rrfFusion || 0,
+                        reranker: cacheResult.timing?.retrieval?.reranker || 0,
+                        generation: cacheResult.timing?.generation || 0,
+                        total: cacheResult.timing?.total || 0
+                    };
+
+                    document.getElementById('query-answer').innerHTML =
+                        `<div style="padding: 8px 12px; background: #e8f5e9; border-left: 4px solid #4caf50; color: #2e7d32; margin-bottom: 12px; border-radius: 4px;">
+                            ⚡ 缓存命中，直接返回结果
+                        </div>` +
+                        generateTimingStatsHtml(timingData) +
+                        `<div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8; margin-top: 12px;">
+                            <div class="markdown-body">
+                                ${formatAnswer(cacheResult.answer)}
+                            </div>
+                        </div>`;
+                    return;
+                }
+
+                // 缓存未命中，执行流式查询
+                // 第一步：纯检索获取检索结果
                 document.getElementById('query-answer').innerHTML = `
                     <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
                         <div style="color: #666; font-size: 14px; margin-bottom: 8px;">🔍 正在检索文档...</div>
@@ -606,7 +647,7 @@
                 `;
 
                 const retrievalStartTime = Date.now();
-                const metaResponse = await fetch('/api/query', {
+                const metaResponse = await fetch('/api/retrieve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question: query, topK, enableRerank })

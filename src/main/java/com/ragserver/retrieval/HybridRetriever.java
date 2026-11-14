@@ -3,6 +3,7 @@ package com.ragserver.retrieval;
 import com.ragserver.retrieval.milvus.MilvusHybridStore;
 import com.ragserver.retrieval.model.Document;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -60,11 +61,14 @@ public class HybridRetriever {
      *
      * <p>标准检索接口，支持混合检索和重排序。</p>
      *
+     * <p>缓存策略：基于查询文本、topK和enableRerank生成缓存键，缓存1小时。</p>
+     *
      * @param query 查询文本
      * @param topK 最终返回的文档数量
      * @param enableRerank 是否启用重排序（建议topK≤10时启用）
      * @return 检索结果（包含文档和耗时统计）
      */
+    @Cacheable(value = "retrieval", key = "#query + '_' + #topK + '_' + #enableRerank")
     public RetrievalResult retrieve(String query, int topK, boolean enableRerank) {
         log.info("开始检索：query={}, topK={}, enableRerank={}", query, topK, enableRerank);
 
@@ -88,9 +92,9 @@ public class HybridRetriever {
             // 3. RRF融合
             stepStart = System.currentTimeMillis();
             List<Document> candidates = rrfFusion(denseResults, sparseResults);
-            // 截取到candidateCount
+            // 截取到candidateCount（转换为新的ArrayList避免序列化问题）
             if (candidates.size() > candidateCount) {
-                candidates = candidates.subList(0, candidateCount);
+                candidates = new java.util.ArrayList<>(candidates.subList(0, candidateCount));
             }
             result.setRrfFusionDurationMs(System.currentTimeMillis() - stepStart);
             log.debug("RRF融合完成：{}个候选文档，耗时{}ms", candidates.size(), result.getRrfFusionDurationMs());
@@ -105,9 +109,9 @@ public class HybridRetriever {
                     candidates.size(), finalResults.size(), result.getRerankerDurationMs());
             } else {
                 result.setRerankerDurationMs(0L);
-                // 不启用Rerank，直接截取topK
+                // 不启用Rerank，直接截取topK（转换为新的ArrayList避免序列化问题）
                 finalResults = candidates.size() > topK
-                        ? candidates.subList(0, topK)
+                        ? new java.util.ArrayList<>(candidates.subList(0, topK))
                         : candidates;
             }
 
@@ -193,17 +197,23 @@ public class HybridRetriever {
                 return List.of();
             } else if (denseResults.isEmpty()) {
                 log.warn("Dense检索失败，降级为Sparse检索");
-                return sparseResults.size() > topK ? sparseResults.subList(0, topK) : sparseResults;
+                return sparseResults.size() > topK
+                    ? new java.util.ArrayList<>(sparseResults.subList(0, topK))
+                    : sparseResults;
             } else if (sparseResults.isEmpty()) {
                 log.warn("Sparse检索失败，降级为Dense检索");
-                return denseResults.size() > topK ? denseResults.subList(0, topK) : denseResults;
+                return denseResults.size() > topK
+                    ? new java.util.ArrayList<>(denseResults.subList(0, topK))
+                    : denseResults;
             }
 
             // 两路都成功，使用RRF融合
             log.debug("两路检索都成功：Dense={}个, Sparse={}个", denseResults.size(), sparseResults.size());
             // 注意：这里需要手动调用RRFFusion，因为我们绕过了MilvusHybridStore.searchHybrid
             // 暂时返回Dense结果作为简化实现
-            return denseResults.size() > topK ? denseResults.subList(0, topK) : denseResults;
+            return denseResults.size() > topK
+                ? new java.util.ArrayList<>(denseResults.subList(0, topK))
+                : denseResults;
 
         } catch (Exception e) {
             log.error("并行检索失败：{}", e.getMessage(), e);
