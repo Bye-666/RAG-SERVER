@@ -129,8 +129,6 @@ public class RedisConfig {
      *
      * <p>统一管理 Spring Cache，支持 {@code @Cacheable}、{@code @CachePut}、{@code @CacheEvict} 注解。</p>
      *
-     * <p>使用 {@code @Primary} 注解标记为主 CacheManager，优先级高于 CacheConfig 中的 Caffeine。</p>
-     *
      * <h3>缓存配置</h3>
      * <ul>
      *   <li>TTL：1 小时过期</li>
@@ -156,7 +154,7 @@ public class RedisConfig {
      * @return 配置好的 CacheManager
      */
     @Bean
-    @Primary  // 标记为主 CacheManager，优先级高于 CacheConfig 中的 Caffeine
+    @Primary
     public CacheManager redisCacheManager(RedisConnectionFactory factory) {
         // 配置 JSON 序列化
         ObjectMapper objectMapper = new ObjectMapper();

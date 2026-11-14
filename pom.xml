@@ -121,12 +121,6 @@
             <artifactId>commons-pool2</artifactId>
         </dependency>
 
-        <!-- Caffeine：高性能Java缓存库（本地缓存，保留作为备选） -->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
-
         <!--
             ========================================
             Spring AI 核心依赖
