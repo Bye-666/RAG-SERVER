@@ -51,7 +51,7 @@ spring:
       # API基础URL
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       # LLM模型名称
-      model: qwen3.8-2.4t-a95b
+      model: qwen3.8-27b
       # Embedding模型名称
       embedding-model: qwen3.7-text-embedding-flash
       # Embedding向量维度

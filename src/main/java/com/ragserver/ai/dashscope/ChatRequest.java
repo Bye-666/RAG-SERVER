@@ -1,5 +1,6 @@
 package com.ragserver.ai.dashscope;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.util.List;
@@ -97,6 +98,7 @@ public class ChatRequest {
      * 聊天消息
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Message {
         /**
          * 角色

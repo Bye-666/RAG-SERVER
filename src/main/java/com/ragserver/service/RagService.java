@@ -10,6 +10,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -125,7 +126,8 @@ public class RagService {
             result.setRetrievalDurationMs(retrievalDuration);
 
             retrievedDocsCount = context.size();
-            result.setRetrievedDocuments(context);
+            // 转换为新的 ArrayList 以避免 subList 序列化问题
+            result.setRetrievedDocuments(new ArrayList<>(context));
             log.debug("检索完成：获取{}个文档，耗时{}ms", context.size(), retrievalDuration);
 
             // 检查是否有检索结果

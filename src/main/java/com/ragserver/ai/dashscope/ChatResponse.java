@@ -1,5 +1,6 @@
 package com.ragserver.ai.dashscope;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.util.List;
@@ -38,6 +39,7 @@ import java.util.List;
  * @since 1.0.0
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatResponse {
 
     /**
@@ -74,6 +76,7 @@ public class ChatResponse {
      * 生成结果
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Choice {
         /**
          * 结果索引（从0开始）
@@ -103,6 +106,7 @@ public class ChatResponse {
      * Token使用统计
      */
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Usage {
         /**
          * 输入token数

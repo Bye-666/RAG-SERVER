@@ -381,6 +381,11 @@
 
                 const result = await response.json();
 
+                // 调试：查看返回的数据结构
+                console.log('Query result:', result);
+                console.log('Sources:', result.sources);
+                console.log('Sources length:', result.sources?.length);
+
                 // 使用 marked.js 渲染 Markdown
                 let renderedAnswer = result.answer ? marked.parse(result.answer) : '无回答';
 
