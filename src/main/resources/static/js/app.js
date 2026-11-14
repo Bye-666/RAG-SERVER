@@ -397,12 +397,19 @@
                 // 显示检索文档
                 let sourcesHtml = '';
                 if (result.sources && result.sources.length > 0) {
-                    // 只使用 retrieval.total，不要 fallback 到 timing.total（那是总耗时）
-                    const retrievalTime = result.timing?.retrieval?.total || 0;
-                    sourcesHtml = `<div style="color: #666; font-size: 14px; margin-bottom: 12px; font-weight: 500;">
-                        ✓ 检索到 ${result.sources.length} 个相关文档（耗时: ${retrievalTime}ms）
-                    </div>`;
+                    // 构建耗时数据（纯检索模式）
+                    const timingData = {
+                        denseSearch: result.timing?.retrieval?.denseSearch || 0,
+                        sparseSearch: result.timing?.retrieval?.sparseSearch || 0,
+                        rrfFusion: result.timing?.retrieval?.rrfFusion || 0,
+                        reranker: result.timing?.retrieval?.reranker || 0,
+                        total: result.timing?.retrieval?.total || result.timing?.total || 0
+                    };
 
+                    // 先显示耗时统计
+                    sourcesHtml = generateTimingStatsHtml(timingData);
+
+                    // 再显示文档列表
                     result.sources.forEach((src, index) => {
                         const metadata = src.metadata || {};
                         const fileName = metadata.file_name || metadata.source || '未知来源';
@@ -608,44 +615,8 @@
                 const metaResult = await metaResponse.json();
                 const retrievalDuration = Date.now() - retrievalStartTime;
 
-                // 显示检索到的文档和检索耗时
-                let sourcesHtml = '';
-                if (metaResult.sources && metaResult.sources.length > 0) {
-                    sourcesHtml = `
-                        <div style="margin-bottom: 12px; font-weight: 600;">
-                            检索到 ${metaResult.sources.length} 个相关文档 (耗时: ${retrievalDuration}ms)
-                        </div>
-                        ${metaResult.sources.map((src, i) => `
-                            <div style="padding: 12px; margin-top: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                    <strong style="color: #2c3e50;">[${i + 1}] ${src.id || 'Document'}</strong>
-                                    ${src.metadata && src.metadata.source ? `<span style="font-size: 12px; color: #666;">来源: ${src.metadata.source}</span>` : ''}
-                                </div>
-                                <div style="color: #555; line-height: 1.5; max-height: 120px; overflow: hidden; text-overflow: ellipsis;">
-                                    ${escapeHtml(src.text || '').substring(0, 300)}${src.text && src.text.length > 300 ? '...' : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    `;
-
-                    // 显示检索详细耗时
-                    if (metaResult.timing && metaResult.timing.retrieval) {
-                        const retrieval = metaResult.timing.retrieval;
-                        sourcesHtml += `
-                            <div style="margin-top: 12px; padding: 8px; background: rgba(52, 152, 219, 0.1); border-radius: 4px; font-size: 12px;">
-                                <strong>检索详情：</strong>
-                                Dense: ${retrieval.denseSearch}ms |
-                                Sparse: ${retrieval.sparseSearch}ms |
-                                RRF: ${retrieval.rrfFusion}ms |
-                                Rerank: ${retrieval.reranker}ms |
-                                总计: ${retrieval.total}ms
-                            </div>
-                        `;
-                    }
-                } else {
-                    sourcesHtml = '<div style="color: #999;">未检索到相关文档</div>';
-                }
-                document.getElementById('query-sources').innerHTML = sourcesHtml;
+                // 流式RAG模式：不显示检索文档列表，只清空 sources 区域
+                document.getElementById('query-sources').innerHTML = '';
 
                 // 第二步：流式生成答案
                 const generationStartTime = Date.now();
@@ -694,20 +665,25 @@
                 const generationDuration = Date.now() - generationStartTime;
                 const totalDuration = Date.now() - streamStartTime;
 
-                // 显示最终答案和耗时统计
-                document.getElementById('query-answer').innerHTML = `
-                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
+                // 构建流式RAG模式的耗时数据（包含检索详情）
+                const retrievalTotal = metaResult.timing?.retrieval?.total || retrievalDuration;
+                const timingData = {
+                    denseSearch: metaResult.timing?.retrieval?.denseSearch || 0,
+                    sparseSearch: metaResult.timing?.retrieval?.sparseSearch || 0,
+                    rrfFusion: metaResult.timing?.retrieval?.rrfFusion || 0,
+                    reranker: metaResult.timing?.retrieval?.reranker || 0,
+                    generation: generationDuration,
+                    total: retrievalTotal + generationDuration
+                };
+
+                // 显示最终答案和耗时统计（耗时在上方）
+                document.getElementById('query-answer').innerHTML =
+                    generateTimingStatsHtml(timingData) +
+                    `<div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8; margin-top: 12px;">
                         <div class="markdown-body">
                             ${formatAnswer(accumulatedText)}
                         </div>
-                    </div>
-                    <div style="margin-top: 12px; padding: 8px; background: rgba(46, 204, 113, 0.1); border-radius: 4px; font-size: 12px;">
-                        <strong>⏱️ 耗时统计：</strong>
-                        检索: ${retrievalDuration}ms |
-                        生成: ${generationDuration}ms |
-                        总计: ${totalDuration}ms (${(totalDuration/1000).toFixed(2)}秒)
-                    </div>
-                `;
+                    </div>`;
 
             } catch (error) {
                 document.getElementById('query-answer').innerHTML = `
@@ -725,6 +701,64 @@
             linkify: true,     // 自动识别链接
             typographer: true  // 启用智能标点替换
         });
+
+        // 生成耗时统计HTML（可视化进度条）
+        function generateTimingStatsHtml(timingData) {
+            const totalTime = timingData.total;
+
+            // 计算各阶段占比
+            const percentages = {};
+            for (let key in timingData) {
+                if (key !== 'total') {
+                    percentages[key] = totalTime > 0 ? ((timingData[key] / totalTime) * 100).toFixed(1) : 0;
+                }
+            }
+
+            // 构建进度条HTML（只显示有耗时的阶段）
+            let progressBarHtml = '';
+            const stageConfigs = {
+                denseSearch: { label: 'Dense检索', color: 'loading' },
+                sparseSearch: { label: 'Sparse检索', color: 'splitting' },
+                rrfFusion: { label: 'RRF融合', color: 'refining' },
+                reranker: { label: 'Rerank', color: 'enriching' },
+                generation: { label: '生成', color: 'embedding' },
+                retrieval: { label: '检索', color: 'loading' }
+            };
+
+            for (let key in timingData) {
+                if (key !== 'total' && timingData[key] > 0) {
+                    const config = stageConfigs[key] || { label: key, color: 'storage' };
+                    const percentage = percentages[key];
+                    progressBarHtml += `<div class="timing-bar timing-bar-${config.color}" style="width: ${percentage}%;" title="${config.label}: ${timingData[key]}ms">${percentage >= 5 ? percentage + '%' : ''}</div>`;
+                }
+            }
+
+            // 构建详细列表HTML（显示所有阶段，包括0ms）
+            let detailsHtml = '';
+            for (let key in timingData) {
+                if (key !== 'total') {
+                    const config = stageConfigs[key] || { label: key, color: 'storage' };
+                    detailsHtml += `
+                        <div class="timing-item">
+                            <span class="timing-dot timing-dot-${config.color}"></span>
+                            ${config.label}: ${timingData[key]}ms (${percentages[key]}%)
+                        </div>
+                    `;
+                }
+            }
+
+            return `
+                <div class="timing-stats">
+                    <div class="timing-header">⏱️ 耗时统计：总耗时 ${totalTime}ms (${(totalTime/1000).toFixed(2)}秒)</div>
+                    <div class="timing-bar-container">
+                        ${progressBarHtml}
+                    </div>
+                    <div class="timing-details">
+                        ${detailsHtml}
+                    </div>
+                </div>
+            `;
+        }
 
         // 格式化答案（使用 markdown-it 渲染 Markdown）
         function formatAnswer(text) {
