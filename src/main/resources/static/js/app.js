@@ -455,8 +455,8 @@
                 console.log('Sources:', result.sources);
                 console.log('Sources length:', result.sources?.length);
 
-                // 使用 marked.js 渲染 Markdown
-                let renderedAnswer = result.answer ? marked.parse(result.answer) : '无回答';
+                // 使用 markdown-it 渲染 Markdown
+                let renderedAnswer = result.answer ? md.render(result.answer) : '无回答';
 
                 // 构建答案显示
                 let answerHtml = `
@@ -718,25 +718,41 @@
             }
         }
 
-        // 格式化答案（使用 marked.js 渲染 Markdown）
+        // 初始化 markdown-it（配置更宽容的选项）
+        const md = window.markdownit({
+            html: true,        // 允许 HTML 标签
+            breaks: true,      // 将换行符转换为 <br>
+            linkify: true,     // 自动识别链接
+            typographer: true  // 启用智能标点替换
+        });
+
+        // 格式化答案（使用 markdown-it 渲染 Markdown）
         function formatAnswer(text) {
             if (!text) return '';
 
-            // 预处理：修复非标准的列表格式
-            // 将 "数字." 或 "数字:" 开头的内容转换为标准列表格式
+            // 预处理：修复一些常见的非标准格式
             let preprocessed = text
-                // 修复 "1.:" 或 "1:" 这样的格式
+                // 移除"引用来源"部分（从"引用来源"到末尾）
+                .replace(/引用来源[:：][\s\S]*$/i, '')
+                // 修复 "数字.内容"（缺少空格）→ "数字. 内容"
+                .replace(/(\d+)\.([^\s])/g, '$1. $2')
+                // 强制在列表项前添加换行（关键修复）
+                // 匹配：句号/分号 + 空格 + 数字. → 换行 + 数字.
+                .replace(/([。；;.!！])\s*(\d+)\.\s+/g, '$1\n\n$2. ')
+                // 修复 "数字.:" 或 "数字:" 这样的格式
                 .replace(/(\d+)\.?:\s*/g, '\n$1. ')
-                // 修复同一行内的多个列表项 "1. xxx；2. yyy"
+                // 修复同一行内的多个列表项 "xxx；2. yyy"
                 .replace(/；\s*(\d+)\.\s*/g, '\n$1. ')
                 // 修复 "###数字." 格式（LLM 误用标题）
                 .replace(/###\s*(\d+)\.\s*/g, '\n$1. ')
                 // 清理多余的空行
-                .replace(/\n{3,}/g, '\n\n');
+                .replace(/\n{3,}/g, '\n\n')
+                // 清理末尾空白
+                .trim();
 
-            // 使用 marked.js 渲染 Markdown
+            // 使用 markdown-it 渲染 Markdown
             try {
-                return marked.parse(preprocessed);
+                return md.render(preprocessed);
             } catch (e) {
                 console.error('Markdown 解析失败:', e);
                 // 降级处理：简单的文本格式化
