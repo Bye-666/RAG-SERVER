@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
@@ -416,7 +417,7 @@ public class RagController {
         @ApiResponse(responseCode = "200", description = "查询成功，返回流式内容"),
         @ApiResponse(responseCode = "400", description = "参数错误")
     })
-    public Flux<String> queryStream(
+    public Flux<ServerSentEvent<String>> queryStream(
             @Parameter(description = "用户问题", required = true, example = "什么是 RAG？")
             @RequestParam String question,
             @Parameter(description = "检索文档数量", example = "10")
@@ -428,14 +429,21 @@ public class RagController {
 
         // 输入校验
         if (question == null || question.trim().isEmpty()) {
-            return Flux.just("错误：查询问题不能为空");
+            return Flux.just(ServerSentEvent.<String>builder()
+                    .data("错误：查询问题不能为空")
+                    .build());
         }
 
         if (topK < 1 || topK > 20) {
-            return Flux.just("错误：topK必须在1-20之间");
+            return Flux.just(ServerSentEvent.<String>builder()
+                    .data("错误：topK必须在1-20之间")
+                    .build());
         }
 
-        return ragService.queryStream(question, topK, enableRerank);
+        return ragService.queryStream(question, topK, enableRerank)
+                .map(token -> ServerSentEvent.<String>builder()
+                        .data(token)
+                        .build());
     }
 
     /**

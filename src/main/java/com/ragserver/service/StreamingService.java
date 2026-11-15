@@ -151,21 +151,44 @@ public class StreamingService {
                 return Flux.empty();
             }
 
+            // 调试：打印原始数据
+            if (data.contains("\\n")) {
+                log.debug("SSE 原始数据包含换行符: {}", data);
+            }
+
             // 解析JSON并提取content
-            // 简化处理：直接查找content字段（避免引入JSON库）
+            // 需要正确处理转义字符，找到真正的结束引号
             int contentIndex = data.indexOf("\"content\"");
             if (contentIndex == -1) {
                 return Flux.empty();
             }
 
-            // 提取content值
+            // 找到 content 值的开始引号
             int startQuote = data.indexOf("\"", contentIndex + 10);
             if (startQuote == -1) {
                 return Flux.empty();
             }
 
-            int endQuote = data.indexOf("\"", startQuote + 1);
-            if (endQuote == -1) {
+            // 找到结束引号（需要跳过转义的引号 \"）
+            int endQuote = startQuote + 1;
+            while (endQuote < data.length()) {
+                if (data.charAt(endQuote) == '"') {
+                    // 检查前面是否有转义符 \
+                    int backslashCount = 0;
+                    int checkPos = endQuote - 1;
+                    while (checkPos >= 0 && data.charAt(checkPos) == '\\') {
+                        backslashCount++;
+                        checkPos--;
+                    }
+                    // 如果反斜杠数量是偶数（包括0），说明引号没有被转义
+                    if (backslashCount % 2 == 0) {
+                        break;
+                    }
+                }
+                endQuote++;
+            }
+
+            if (endQuote >= data.length()) {
                 return Flux.empty();
             }
 
@@ -175,7 +198,6 @@ public class StreamingService {
             content = unescapeJson(content);
 
             if (!content.isEmpty()) {
-                log.trace("解析到流式内容：{}", content);
                 return Flux.just(content);
             }
 

@@ -456,15 +456,13 @@
                 console.log('Sources:', result.sources);
                 console.log('Sources length:', result.sources?.length);
 
-                // 使用 markdown-it 渲染 Markdown
-                let renderedAnswer = result.answer ? md.render(result.answer) : '无回答';
+                // 纯文本显示（移除 Markdown 渲染）
+                let formattedAnswer = result.answer ? formatAnswer(result.answer) : '无回答';
 
                 // 构建答案显示
                 let answerHtml = `
-                    <div style="padding: 20px; background: white; border-radius: 8px; line-height: 1.8; font-size: 15px; border: 1px solid #e0e0e0;">
-                        <div class="markdown-body">
-                            ${renderedAnswer}
-                        </div>
+                    <div style="padding: 20px; background: white; border-radius: 8px; line-height: 1.8; font-size: 15px; border: 1px solid #e0e0e0; white-space: pre-wrap;">
+                        ${formattedAnswer}
                     </div>
                 `;
 
@@ -596,7 +594,7 @@
                 document.getElementById('query-answer').innerHTML = `
                     <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
                         <div style="color: #666; font-size: 14px; margin-bottom: 8px;">⚡ 正在实时生成答案...</div>
-                        <div id="stream-answer" class="markdown-body" style="min-height: 40px;"></div>
+                        <div id="stream-answer" style="min-height: 40px; white-space: pre-wrap;"></div>
                     </div>
                 `;
 
@@ -626,25 +624,23 @@
 
                     const chunk = decoder.decode(value, { stream: true });
 
-                    // 解析SSE格式：移除 "data:" 前缀，保留内容中的所有字符（包括换行）
+                    // 解析SSE格式：移除 "data:" 前缀
                     const lines = chunk.split('\n');
                     for (const line of lines) {
                         if (line.startsWith('data:')) {
-                            // 移除 "data:" 前缀，保留后面的所有内容
                             const content = line.substring(5);
 
                             // 检查是否包含耗时数据标记
                             if (content.includes('__TIMING_DATA__')) {
                                 try {
-                                    // 提取JSON部分（移除标记前缀）
                                     const jsonStr = content.replace('__TIMING_DATA__', '').trim();
                                     timingData = JSON.parse(jsonStr);
                                     console.log('收到耗时统计:', timingData);
                                 } catch (e) {
                                     console.error('解析耗时数据失败:', e, content);
                                 }
-                            } else {
-                                // 普通文本内容，直接追加（不做任何trim或换行处理）
+                            } else if (content) {
+                                // 普通文本内容，直接追加
                                 accumulatedText += content;
 
                                 // 使用 requestAnimationFrame 节流渲染（最多60fps）
@@ -676,7 +672,7 @@
                     document.getElementById('query-answer').innerHTML =
                         generateTimingStatsHtml(timingData) +
                         `<div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8; margin-top: 12px;">
-                            <div class="markdown-body">
+                            <div style="white-space: pre-wrap;">
                                 ${formatAnswer(accumulatedText)}
                             </div>
                         </div>`;
@@ -685,7 +681,7 @@
                     console.warn('未收到耗时统计数据');
                     document.getElementById('query-answer').innerHTML = `
                         <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
-                            <div class="markdown-body">
+                            <div style="white-space: pre-wrap;">
                                 ${formatAnswer(accumulatedText)}
                             </div>
                         </div>`;
@@ -699,14 +695,6 @@
                 `;
             }
         }
-
-        // 初始化 markdown-it（配置更宽容的选项）
-        const md = window.markdownit({
-            html: true,        // 允许 HTML 标签
-            breaks: true,      // 将换行符转换为 <br>
-            linkify: true,     // 自动识别链接
-            typographer: true  // 启用智能标点替换
-        });
 
         // 生成耗时统计HTML（可视化进度条）
         function generateTimingStatsHtml(timingData) {
@@ -854,53 +842,25 @@
             `;
         }
 
-        // 格式化答案（使用 markdown-it 渲染 Markdown）
+        // 格式化答案（纯文本显示，保留换行和基本格式）
         function formatAnswer(text) {
             if (!text) return '';
 
-            // 预处理：修复一些常见的非标准格式
-            let preprocessed = text
+            // 简单处理：
+            // 1. 移除"引用来源"部分
+            // 2. HTML 转义
+            // 3. 保留原始换行符（不转换为 <br>，因为使用了 white-space: pre-wrap）
+            let formatted = text
                 // 移除"引用来源"部分（从"引用来源"到末尾）
                 .replace(/引用来源[:：][\s\S]*$/i, '')
-                // 修复未闭合的加粗标记（孤立的 ** 会干扰 Markdown 解析）
-                // 统计 ** 数量，如果是奇数则在末尾补一个
-                .replace(/\*\*/g, (match, offset, string) => {
-                    const before = string.substring(0, offset);
-                    const count = (before.match(/\*\*/g) || []).length;
-                    // 如果是奇数个，说明前面有未闭合的，删除这个孤立的标记
-                    return count % 2 === 0 ? match : '';
-                })
-                // 修复 "数字.内容"（缺少空格）→ "数字. 内容"
-                .replace(/(\d+)\.([^\s\d.])/g, '$1. $2')
-                // 关键修复：在每个列表项（数字.）前强制添加换行
-                // 匹配任意字符 + 数字. + 空格，在数字前插入两个换行
-                .replace(/([^\n])(\d+)\.\s+/g, '$1\n\n$2. ')
-                // 修复行首的列表项（确保前面有空行）
-                .replace(/^(\d+)\.\s+/gm, '\n$1. ')
-                // 修复 "数字.:" 或 "数字:" 这样的格式
-                .replace(/(\d+)\.?:\s*/g, '\n\n$1. ')
-                // 修复同一行内的多个列表项 "xxx；2. yyy"
-                .replace(/[；;]\s*(\d+)\.\s*/g, '\n\n$1. ')
-                // 修复 "###数字." 格式（LLM 误用标题）
-                .replace(/###\s*(\d+)\.\s*/g, '\n\n$1. ')
-                // 清理开头多余的空行
-                .replace(/^\n+/, '')
-                // 清理多余的空行（保留最多2个换行，即一个空行）
-                .replace(/\n{3,}/g, '\n\n')
-                // 清理末尾空白
                 .trim();
 
-            // 使用 markdown-it 渲染 Markdown
-            try {
-                return md.render(preprocessed);
-            } catch (e) {
-                console.error('Markdown 解析失败:', e);
-                // 降级处理：简单的文本格式化
-                let formatted = escapeHtml(preprocessed);
-                formatted = formatted.replace(/\n/g, '<br>');
-                formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-                return formatted;
-            }
+            // HTML 转义（保护特殊字符）
+            formatted = escapeHtml(formatted);
+
+            // 不需要将 \n 转换为 <br>，因为 CSS 使用了 white-space: pre-wrap
+
+            return formatted;
         }
 
         // 历史记录相关变量
