@@ -164,21 +164,25 @@ public class RagService {
     /**
      * 流式RAG查询（完整参数）
      *
-     * <p>支持自定义检索参数的流式查询。</p>
+     * <p>支持自定义检索参数的流式查询，并返回详细的耗时统计。</p>
      *
      * @param question 用户问题
      * @param topK 检索文档数量
      * @param enableRerank 是否启用重排序
-     * @return 流式答案文本
+     * @return 流式答案文本（包含耗时统计）
      */
     public Flux<String> queryStream(String question, int topK, boolean enableRerank) {
         log.info("开始流式RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
         return Flux.defer(() -> {
             try {
+                long totalStartTime = System.currentTimeMillis();
+
                 // 1. 检索相关文档
+                long retrievalStartTime = System.currentTimeMillis();
                 HybridRetriever.RetrievalResult result = retriever.retrieve(question, topK, enableRerank);
                 List<Document> context = result.getDocuments();
+                long retrievalEndTime = System.currentTimeMillis();
                 log.debug("检索完成：获取{}个文档", context.size());
 
                 // 检查是否有检索结果
@@ -188,16 +192,52 @@ public class RagService {
                 }
 
                 // 2. 构建Prompt
+                long promptStartTime = System.currentTimeMillis();
                 String prompt = promptService.buildRagPrompt(question, context);
+                long promptEndTime = System.currentTimeMillis();
                 log.debug("Prompt构建完成，长度：{}", prompt.length());
 
-                // 3. 流式生成答案
-                Flux<String> answerStream = streamingService.streamChat(prompt);
+                // 3. 流式生成答案（记录首字延迟和生成耗时）
+                final long[] firstTokenTime = {0L};  // 首字延迟
+                final long[] streamStartTime = {System.currentTimeMillis()};
 
-                // 4. 在流结束时添加引用
-                String citations = promptService.buildCitations(context);
+                Flux<String> answerStream = streamingService.streamChat(prompt)
+                    .doOnNext(token -> {
+                        if (firstTokenTime[0] == 0L) {
+                            firstTokenTime[0] = System.currentTimeMillis();
+                            log.debug("收到第一个token，首字延迟：{}ms", firstTokenTime[0] - streamStartTime[0]);
+                        }
+                    });
 
-                return answerStream.concatWith(Flux.just("\n\n" + citations));
+                // 4. 在流结束时添加耗时统计（使用特殊标记，便于前端识别）
+                return answerStream.concatWith(Flux.defer(() -> {
+                    long totalEndTime = System.currentTimeMillis();
+
+                    // 计算各阶段耗时
+                    long denseSearchMs = result.getDenseSearchDurationMs();
+                    long sparseSearchMs = result.getSparseSearchDurationMs();
+                    long rrfFusionMs = result.getRrfFusionDurationMs();
+                    long rerankerMs = result.getRerankerDurationMs();
+                    long retrievalTotalMs = retrievalEndTime - retrievalStartTime;
+                    long promptBuildMs = promptEndTime - promptStartTime;
+                    long ttftMs = firstTokenTime[0] > 0 ? (firstTokenTime[0] - streamStartTime[0]) : 0;
+                    long streamGenerationMs = firstTokenTime[0] > 0 ? (totalEndTime - firstTokenTime[0]) : 0;
+                    long totalMs = totalEndTime - totalStartTime;
+
+                    // 使用特殊标记前缀，便于前端识别（不会被渲染为文本）
+                    String timingJson = String.format(
+                        "\n__TIMING_DATA__{\"denseSearch\":%d,\"sparseSearch\":%d,\"rrfFusion\":%d," +
+                        "\"reranker\":%d,\"retrieval\":%d,\"promptBuild\":%d,\"ttft\":%d," +
+                        "\"streamGeneration\":%d,\"total\":%d}",
+                        denseSearchMs, sparseSearchMs, rrfFusionMs, rerankerMs, retrievalTotalMs,
+                        promptBuildMs, ttftMs, streamGenerationMs, totalMs
+                    );
+
+                    log.info("流式查询完成 - 总耗时: {}ms, 检索: {}ms, Prompt: {}ms, TTFT: {}ms, 生成: {}ms",
+                        totalMs, retrievalTotalMs, promptBuildMs, ttftMs, streamGenerationMs);
+
+                    return Flux.just(timingJson);
+                }));
 
             } catch (Exception e) {
                 log.error("流式RAG查询失败：question={}, error={}", question, e.getMessage(), e);
