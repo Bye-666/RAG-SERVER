@@ -626,30 +626,28 @@
 
                     const chunk = decoder.decode(value, { stream: true });
 
-                    // 解析SSE格式：移除 "data:" 前缀
+                    // 解析SSE格式：移除 "data:" 前缀，保留内容中的所有字符（包括换行）
                     const lines = chunk.split('\n');
                     for (const line of lines) {
                         if (line.startsWith('data:')) {
-                            const content = line.substring(5).trim(); // 移除 "data:" 并去掉空格
-
-                            if (!content) continue;
+                            // 移除 "data:" 前缀，保留后面的所有内容
+                            const content = line.substring(5);
 
                             // 检查是否包含耗时数据标记
                             if (content.includes('__TIMING_DATA__')) {
                                 try {
                                     // 提取JSON部分（移除标记前缀）
-                                    const jsonStr = content.replace('__TIMING_DATA__', '');
+                                    const jsonStr = content.replace('__TIMING_DATA__', '').trim();
                                     timingData = JSON.parse(jsonStr);
                                     console.log('收到耗时统计:', timingData);
                                 } catch (e) {
                                     console.error('解析耗时数据失败:', e, content);
                                 }
                             } else {
-                                // 普通文本内容
+                                // 普通文本内容，直接追加（不做任何trim或换行处理）
                                 accumulatedText += content;
 
                                 // 使用 requestAnimationFrame 节流渲染（最多60fps）
-                                // 避免每个chunk都触发昂贵的Markdown解析和DOM更新
                                 if (document.getElementById('stream-answer')) {
                                     if (rafId) {
                                         cancelAnimationFrame(rafId);
@@ -864,18 +862,30 @@
             let preprocessed = text
                 // 移除"引用来源"部分（从"引用来源"到末尾）
                 .replace(/引用来源[:：][\s\S]*$/i, '')
+                // 修复未闭合的加粗标记（孤立的 ** 会干扰 Markdown 解析）
+                // 统计 ** 数量，如果是奇数则在末尾补一个
+                .replace(/\*\*/g, (match, offset, string) => {
+                    const before = string.substring(0, offset);
+                    const count = (before.match(/\*\*/g) || []).length;
+                    // 如果是奇数个，说明前面有未闭合的，删除这个孤立的标记
+                    return count % 2 === 0 ? match : '';
+                })
                 // 修复 "数字.内容"（缺少空格）→ "数字. 内容"
-                .replace(/(\d+)\.([^\s])/g, '$1. $2')
-                // 强制在列表项前添加换行（关键修复）
-                // 匹配：句号/分号 + 空格 + 数字. → 换行 + 数字.
-                .replace(/([。；;.!！])\s*(\d+)\.\s+/g, '$1\n\n$2. ')
+                .replace(/(\d+)\.([^\s\d.])/g, '$1. $2')
+                // 关键修复：在每个列表项（数字.）前强制添加换行
+                // 匹配任意字符 + 数字. + 空格，在数字前插入两个换行
+                .replace(/([^\n])(\d+)\.\s+/g, '$1\n\n$2. ')
+                // 修复行首的列表项（确保前面有空行）
+                .replace(/^(\d+)\.\s+/gm, '\n$1. ')
                 // 修复 "数字.:" 或 "数字:" 这样的格式
-                .replace(/(\d+)\.?:\s*/g, '\n$1. ')
+                .replace(/(\d+)\.?:\s*/g, '\n\n$1. ')
                 // 修复同一行内的多个列表项 "xxx；2. yyy"
-                .replace(/；\s*(\d+)\.\s*/g, '\n$1. ')
+                .replace(/[；;]\s*(\d+)\.\s*/g, '\n\n$1. ')
                 // 修复 "###数字." 格式（LLM 误用标题）
-                .replace(/###\s*(\d+)\.\s*/g, '\n$1. ')
-                // 清理多余的空行
+                .replace(/###\s*(\d+)\.\s*/g, '\n\n$1. ')
+                // 清理开头多余的空行
+                .replace(/^\n+/, '')
+                // 清理多余的空行（保留最多2个换行，即一个空行）
                 .replace(/\n{3,}/g, '\n\n')
                 // 清理末尾空白
                 .trim();

@@ -139,14 +139,14 @@ public class StreamingService {
                 return Flux.empty();
             }
 
-            // 处理data:前缀
+            // 处理data:前缀（不要trim，保留换行符）
             String data = sseData;
             if (data.startsWith(DATA_PREFIX)) {
-                data = data.substring(DATA_PREFIX.length()).trim();
+                data = data.substring(DATA_PREFIX.length());
             }
 
-            // 检查结束标记
-            if (DONE_MARKER.equals(data)) {
+            // 检查结束标记（trim后再比较）
+            if (DONE_MARKER.equals(data.trim())) {
                 log.debug("接收到流式结束标记");
                 return Flux.empty();
             }

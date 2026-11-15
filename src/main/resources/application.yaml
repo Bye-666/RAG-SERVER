@@ -82,7 +82,7 @@ spring:
   # ========================================
   datasource:
     # MySQL 数据库连接URL
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/rag_server?useUnicode=true&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/rag_server?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     # 数据库驱动
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 用户名
