@@ -666,25 +666,19 @@
                     cancelAnimationFrame(rafId);
                 }
 
-                // 流式完成，显示最终答案和耗时统计
+                // 流式完成，添加耗时统计到答案上方
                 if (timingData) {
-                    // 使用后端返回的详细耗时数据
-                    document.getElementById('query-answer').innerHTML =
+                    const answerContainer = document.getElementById('query-answer');
+                    const streamAnswerDiv = document.getElementById('stream-answer');
+
+                    // 构建完整的显示内容：耗时统计 + 答案
+                    answerContainer.innerHTML =
                         generateTimingStatsHtml(timingData) +
                         `<div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8; margin-top: 12px;">
-                            <div style="white-space: pre-wrap;">
-                                ${formatAnswer(accumulatedText)}
-                            </div>
+                            <div style="white-space: pre-wrap;">${escapeHtml(accumulatedText)}</div>
                         </div>`;
                 } else {
-                    // 降级处理：如果没有收到耗时数据，只显示答案
                     console.warn('未收到耗时统计数据');
-                    document.getElementById('query-answer').innerHTML = `
-                        <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
-                            <div style="white-space: pre-wrap;">
-                                ${formatAnswer(accumulatedText)}
-                            </div>
-                        </div>`;
                 }
 
             } catch (error) {
