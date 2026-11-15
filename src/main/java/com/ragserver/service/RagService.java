@@ -21,22 +21,19 @@ import java.util.List;
  *   <li>混合检索：通过HybridRetriever获取相关文档</li>
  *   <li>可选Rerank：LLM精排提升结果质量</li>
  *   <li>Prompt构建：将上下文和问题渲染到模板</li>
- *   <li>LLM生成：调用大模型生成答案</li>
+ *   <li>LLM生成：调用大模型生成答案（流式输出）</li>
  *   <li>Citation添加：附加文档引用信息</li>
  * </ol>
  *
  * <h3>使用示例</h3>
  * <pre>{@code
- * // 基本查询
- * String answer = ragService.query("什么是RAG？");
- *
- * // 启用Rerank
- * String answer = ragService.query("什么是RAG？", 10, true);
+ * // 流式查询
+ * Flux<String> answerStream = ragService.queryStream("什么是RAG？", 10, false);
  * }</pre>
  *
  * <h3>流程图</h3>
  * <pre>
- * 用户问题 → 混合检索 → (可选Rerank) → Prompt构建 → LLM生成 → 添加Citation → 返回答案
+ * 用户问题 → 混合检索 → (可选Rerank) → Prompt构建 → LLM流式生成 → 返回答案流
  * </pre>
  *
  * @author RAG-SERVER开发团队
@@ -72,124 +69,6 @@ public class RagService {
         this.promptService = promptService;
         this.streamingService = streamingService;
         this.queryHistoryRepository = queryHistoryRepository;
-    }
-
-    /**
-     * RAG查询（使用默认参数）
-     *
-     * <p>默认检索10个文档，不启用Rerank。</p>
-     *
-     * @param question 用户问题
-     * @return 生成的答案（带引用）
-     */
-    public String query(String question) {
-        QueryResult result = query(question, DEFAULT_TOP_K, DEFAULT_ENABLE_RERANK);
-        return result.getAnswer();
-    }
-
-    /**
-     * RAG查询（完整参数）
-     *
-     * <p>完整的RAG流程，支持自定义参数。</p>
-     *
-     * <p>缓存策略：基于问题、topK和enableRerank生成缓存键，缓存30分钟。</p>
-     *
-     * @param question 用户问题
-     * @param topK 检索文档数量
-     * @param enableRerank 是否启用重排序
-     * @return 生成的答案（带引用）
-     */
-    @Cacheable(value = "ragQuery", key = "#question + '_' + #topK + '_' + #enableRerank")
-    public QueryResult query(String question, int topK, boolean enableRerank) {
-        log.info("开始RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
-
-        long totalStartTime = System.currentTimeMillis();
-        QueryResult result = new QueryResult();
-
-        String answer = null;
-        String status = "SUCCESS";
-        String errorMessage = null;
-        int retrievedDocsCount = 0;
-
-        try {
-            // 1. 检索相关文档
-            long stepStart = System.currentTimeMillis();
-            HybridRetriever.RetrievalResult retrievalResult = retriever.retrieve(question, topK, enableRerank);
-            List<Document> context = retrievalResult.getDocuments();
-            long retrievalDuration = System.currentTimeMillis() - stepStart;
-
-            // 保存详细的检索耗时
-            result.setDenseSearchDurationMs(retrievalResult.getDenseSearchDurationMs());
-            result.setSparseSearchDurationMs(retrievalResult.getSparseSearchDurationMs());
-            result.setRrfFusionDurationMs(retrievalResult.getRrfFusionDurationMs());
-            result.setRerankerDurationMs(retrievalResult.getRerankerDurationMs());
-            result.setRetrievalDurationMs(retrievalDuration);
-
-            retrievedDocsCount = context.size();
-            // 转换为新的 ArrayList 以避免 subList 序列化问题
-            result.setRetrievedDocuments(new ArrayList<>(context));
-            log.debug("检索完成：获取{}个文档，耗时{}ms", context.size(), retrievalDuration);
-
-            // 检查是否有检索结果
-            if (context.isEmpty()) {
-                log.warn("未检索到相关文档");
-                status = "NO_RESULTS";
-                answer = "抱歉，在知识库中未找到与您问题相关的信息。";
-                result.setAnswer(answer);
-                result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
-
-                // 记录查询历史
-                saveQueryHistory(question, answer, topK, enableRerank,
-                    result.getTotalDurationMs(), status, retrievedDocsCount, null);
-
-                return result;
-            }
-
-            // 2. 构建Prompt
-            stepStart = System.currentTimeMillis();
-            String prompt = promptService.buildRagPrompt(question, context);
-            result.setPromptBuildDurationMs(System.currentTimeMillis() - stepStart);
-            log.debug("Prompt构建完成，长度：{}，耗时{}ms", prompt.length(), result.getPromptBuildDurationMs());
-
-            // 3. LLM生成答案
-            stepStart = System.currentTimeMillis();
-            answer = chatClient.chat(prompt);
-            result.setLlmGenerationDurationMs(System.currentTimeMillis() - stepStart);
-            log.debug("LLM生成完成，答案长度：{}，耗时{}ms", answer.length(), result.getLlmGenerationDurationMs());
-
-            // 4. 添加引用
-            stepStart = System.currentTimeMillis();
-            String citations = promptService.buildCitations(context);
-            result.setCitationBuildDurationMs(System.currentTimeMillis() - stepStart);
-
-            // 5. 组合答案和引用
-            String finalAnswer = answer + "\n\n" + citations;
-            result.setAnswer(finalAnswer);
-            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
-
-            log.info("RAG查询完成：总耗时{}ms [检索:{}ms, Prompt:{}ms, LLM:{}ms, 引用:{}ms]",
-                result.getTotalDurationMs(), result.getRetrievalDurationMs(),
-                result.getPromptBuildDurationMs(), result.getLlmGenerationDurationMs(),
-                result.getCitationBuildDurationMs());
-
-            // 记录查询历史
-            saveQueryHistory(question, finalAnswer, topK, enableRerank,
-                result.getTotalDurationMs(), status, retrievedDocsCount, null);
-
-            return result;
-
-        } catch (Exception e) {
-            log.error("RAG查询失败：question={}, error={}", question, e.getMessage(), e);
-            status = "FAILED";
-            errorMessage = e.getMessage();
-            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
-
-            // 记录失败的查询历史
-            saveQueryHistory(question, null, topK, enableRerank,
-                result.getTotalDurationMs(), status, retrievedDocsCount, errorMessage);
-
-            throw new RuntimeException("RAG查询失败：" + e.getMessage(), e);
-        }
     }
 
     /**

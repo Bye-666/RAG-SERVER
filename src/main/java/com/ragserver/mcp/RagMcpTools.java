@@ -109,15 +109,15 @@ public class RagMcpTools {
     ) {}
 
     /**
-     * 注册 rag_query Tool
+     * 注册 rag_query Tool（纯检索，不生成答案）
      *
-     * @param ragService RAG 核心服务
+     * @param hybridRetriever 混合检索器
      * @return Function
      */
     @Bean
-    @Description("Query the RAG knowledge base with hybrid retrieval (Dense + Sparse)")
-    public Function<RagQueryRequest, String> ragQuery(RagService ragService) {
-        log.info("注册 MCP Tool: ragQuery");
+    @Description("Retrieve relevant documents from the RAG knowledge base with hybrid search (Dense + Sparse)")
+    public Function<RagQueryRequest, String> ragQuery(com.ragserver.retrieval.HybridRetriever hybridRetriever) {
+        log.info("注册 MCP Tool: ragQuery (纯检索模式)");
 
         return request -> {
             try {
@@ -134,16 +134,37 @@ public class RagMcpTools {
 
                 boolean enableRerank = (request.enableRerank() != null) ? request.enableRerank() : false;
 
-                log.info("MCP Tool 调用: ragQuery, question={}, topK={}, enableRerank={}",
+                log.info("MCP Tool 调用: ragQuery (纯检索), question={}, topK={}, enableRerank={}",
                         question, topK, enableRerank);
 
-                // 调用 RAG 服务
-                RagService.QueryResult result = ragService.query(question, topK, enableRerank);
+                // 调用纯检索服务
+                com.ragserver.retrieval.HybridRetriever.RetrievalResult result =
+                    hybridRetriever.retrieve(question, topK, enableRerank);
 
-                return result.getAnswer() + "\n\n--- Performance ---\n" +
-                        "Total: " + result.getTotalDurationMs() + " ms\n" +
-                        "Retrieval: " + result.getRetrievalDurationMs() + " ms\n" +
-                        "LLM: " + result.getLlmGenerationDurationMs() + " ms";
+                // 构建返回结果（只返回检索到的文档，不生成答案）
+                StringBuilder response = new StringBuilder();
+                response.append("Retrieved ").append(result.getDocuments().size()).append(" documents:\n\n");
+
+                int index = 1;
+                for (com.ragserver.retrieval.model.Document doc : result.getDocuments()) {
+                    response.append("[").append(index++).append("] ");
+                    response.append(doc.getText());
+                    if (doc.getMetadata() != null && !doc.getMetadata().isEmpty()) {
+                        response.append("\n   Metadata: ").append(doc.getMetadata());
+                    }
+                    response.append("\n\n");
+                }
+
+                response.append("--- Performance ---\n");
+                response.append("Total: ").append(result.getTotalDurationMs()).append(" ms\n");
+                response.append("Dense Search: ").append(result.getDenseSearchDurationMs()).append(" ms\n");
+                response.append("Sparse Search: ").append(result.getSparseSearchDurationMs()).append(" ms\n");
+                response.append("RRF Fusion: ").append(result.getRrfFusionDurationMs()).append(" ms\n");
+                if (enableRerank) {
+                    response.append("Reranker: ").append(result.getRerankerDurationMs()).append(" ms");
+                }
+
+                return response.toString();
 
             } catch (McpException e) {
                 log.error("ragQuery failed: {}", e.getMessage());

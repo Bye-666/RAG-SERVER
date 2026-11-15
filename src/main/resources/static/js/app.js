@@ -598,69 +598,7 @@
             try {
                 const streamStartTime = Date.now();
 
-                // 步骤0：先检查是否有缓存的完整答案
-                document.getElementById('query-answer').innerHTML = `
-                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
-                        <div style="color: #666; font-size: 14px; margin-bottom: 8px;">🔍 正在检索...</div>
-                    </div>
-                `;
-
-                const cacheCheckResponse = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: query, topK, enableRerank })
-                });
-
-                const cacheResult = await cacheCheckResponse.json();
-
-                // 如果有缓存的答案（检查耗时是否很短，判断为缓存命中）
-                if (cacheResult.answer && cacheResult.timing?.total < 100) {
-                    // 缓存命中，直接显示答案
-                    const timingData = {
-                        denseSearch: cacheResult.timing?.retrieval?.denseSearch || 0,
-                        sparseSearch: cacheResult.timing?.retrieval?.sparseSearch || 0,
-                        rrfFusion: cacheResult.timing?.retrieval?.rrfFusion || 0,
-                        reranker: cacheResult.timing?.retrieval?.reranker || 0,
-                        generation: cacheResult.timing?.generation || 0,
-                        total: cacheResult.timing?.total || 0
-                    };
-
-                    document.getElementById('query-answer').innerHTML =
-                        `<div style="padding: 8px 12px; background: #e8f5e9; border-left: 4px solid #4caf50; color: #2e7d32; margin-bottom: 12px; border-radius: 4px;">
-                            ⚡ 缓存命中，直接返回结果
-                        </div>` +
-                        generateTimingStatsHtml(timingData) +
-                        `<div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8; margin-top: 12px;">
-                            <div class="markdown-body">
-                                ${formatAnswer(cacheResult.answer)}
-                            </div>
-                        </div>`;
-                    return;
-                }
-
-                // 缓存未命中，执行流式查询
-                // 第一步：纯检索获取检索结果
-                document.getElementById('query-answer').innerHTML = `
-                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.6;">
-                        <div style="color: #666; font-size: 14px; margin-bottom: 8px;">🔍 正在检索文档...</div>
-                    </div>
-                `;
-
-                const retrievalStartTime = Date.now();
-                const metaResponse = await fetch('/api/retrieve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: query, topK, enableRerank })
-                });
-
-                const metaResult = await metaResponse.json();
-                const retrievalDuration = Date.now() - retrievalStartTime;
-
-                // 流式RAG模式：不显示检索文档列表，只清空 sources 区域
-                document.getElementById('query-sources').innerHTML = '';
-
-                // 第二步：流式生成答案
-                const generationStartTime = Date.now();
+                // 显示加载状态
                 document.getElementById('query-answer').innerHTML = `
                     <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
                         <div style="color: #666; font-size: 14px; margin-bottom: 8px;">⚡ 正在实时生成答案...</div>
@@ -668,6 +606,11 @@
                     </div>
                 `;
 
+                // 清空 sources 区域
+                document.getElementById('query-sources').innerHTML = '';
+
+                // 流式生成答案
+                const generationStartTime = Date.now();
                 const url = `/api/query/stream?question=${encodeURIComponent(query)}&topK=${topK}&enableRerank=${enableRerank}`;
                 const response = await fetch(url);
 
@@ -703,18 +646,13 @@
                 }
 
                 // 流式完成，计算总耗时
-                const generationDuration = Date.now() - generationStartTime;
                 const totalDuration = Date.now() - streamStartTime;
 
-                // 构建流式RAG模式的耗时数据（包含检索详情）
-                const retrievalTotal = metaResult.timing?.retrieval?.total || retrievalDuration;
+                // 简化的耗时数据（流式查询，只显示总耗时和生成耗时）
+                const generationDuration = Date.now() - generationStartTime;
                 const timingData = {
-                    denseSearch: metaResult.timing?.retrieval?.denseSearch || 0,
-                    sparseSearch: metaResult.timing?.retrieval?.sparseSearch || 0,
-                    rrfFusion: metaResult.timing?.retrieval?.rrfFusion || 0,
-                    reranker: metaResult.timing?.retrieval?.reranker || 0,
                     generation: generationDuration,
-                    total: retrievalTotal + generationDuration
+                    total: totalDuration
                 };
 
                 // 显示最终答案和耗时统计（耗时在上方）
