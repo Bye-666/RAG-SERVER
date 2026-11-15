@@ -188,6 +188,9 @@ public class RagService {
                 // 检查是否有检索结果
                 if (context.isEmpty()) {
                     log.warn("未检索到相关文档");
+                    // 保存失败历史
+                    saveQueryHistory(question, "未找到相关文档", topK, enableRerank,
+                        System.currentTimeMillis() - totalStartTime, "SUCCESS", 0, null);
                     return Flux.just("抱歉，在知识库中未找到与您问题相关的信息。");
                 }
 
@@ -197,9 +200,10 @@ public class RagService {
                 long promptEndTime = System.currentTimeMillis();
                 log.debug("Prompt构建完成，长度：{}", prompt.length());
 
-                // 3. 流式生成答案（记录首字延迟和生成耗时）
+                // 3. 流式生成答案（记录首字延迟和生成耗时，同时累积答案文本）
                 final long[] firstTokenTime = {0L};  // 首字延迟
                 final long[] streamStartTime = {System.currentTimeMillis()};
+                final StringBuilder answerBuilder = new StringBuilder();  // 累积答案文本
 
                 Flux<String> answerStream = streamingService.streamChat(prompt)
                     .doOnNext(token -> {
@@ -207,9 +211,11 @@ public class RagService {
                             firstTokenTime[0] = System.currentTimeMillis();
                             log.debug("收到第一个token，首字延迟：{}ms", firstTokenTime[0] - streamStartTime[0]);
                         }
+                        // 累积答案文本
+                        answerBuilder.append(token);
                     });
 
-                // 4. 在流结束时添加耗时统计（使用特殊标记，便于前端识别）
+                // 4. 在流结束时添加耗时统计并保存历史记录
                 return answerStream.concatWith(Flux.defer(() -> {
                     long totalEndTime = System.currentTimeMillis();
 
@@ -224,6 +230,11 @@ public class RagService {
                     long streamGenerationMs = firstTokenTime[0] > 0 ? (totalEndTime - firstTokenTime[0]) : 0;
                     long totalMs = totalEndTime - totalStartTime;
 
+                    // 保存查询历史（异步，不阻塞响应）
+                    String fullAnswer = answerBuilder.toString();
+                    saveQueryHistory(question, fullAnswer, topK, enableRerank,
+                        totalMs, "SUCCESS", context.size(), null);
+
                     // 使用特殊标记前缀，便于前端识别（不会被渲染为文本）
                     String timingJson = String.format(
                         "\n__TIMING_DATA__{\"denseSearch\":%d,\"sparseSearch\":%d,\"rrfFusion\":%d," +
@@ -237,10 +248,17 @@ public class RagService {
                         totalMs, retrievalTotalMs, promptBuildMs, ttftMs, streamGenerationMs);
 
                     return Flux.just(timingJson);
-                }));
+                })).doOnError(error -> {
+                    // 保存失败历史
+                    log.error("流式查询异常，保存失败历史", error);
+                    saveQueryHistory(question, null, topK, enableRerank,
+                        System.currentTimeMillis() - totalStartTime, "FAILED", 0, error.getMessage());
+                });
 
             } catch (Exception e) {
                 log.error("流式RAG查询失败：question={}, error={}", question, e.getMessage(), e);
+                // 保存失败历史
+                saveQueryHistory(question, null, topK, enableRerank, 0L, "FAILED", 0, e.getMessage());
                 return Flux.just("错误：" + e.getMessage());
             }
         });
