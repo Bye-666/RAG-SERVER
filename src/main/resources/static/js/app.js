@@ -615,6 +615,7 @@
                 const decoder = new TextDecoder();
                 let accumulatedText = '';
                 let timingData = null;
+                let rafId = null;  // 用于节流渲染
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -646,13 +647,29 @@
                             } else {
                                 // 普通文本内容
                                 accumulatedText += content;
-                                // 每次接收到新内容都立即渲染，实现逐字显示
+
+                                // 使用 requestAnimationFrame 节流渲染（最多60fps）
+                                // 避免每个chunk都触发昂贵的Markdown解析和DOM更新
                                 if (document.getElementById('stream-answer')) {
-                                    document.getElementById('stream-answer').innerHTML = formatAnswer(accumulatedText);
+                                    if (rafId) {
+                                        cancelAnimationFrame(rafId);
+                                    }
+                                    rafId = requestAnimationFrame(() => {
+                                        const answerElement = document.getElementById('stream-answer');
+                                        if (answerElement) {
+                                            answerElement.innerHTML = formatAnswer(accumulatedText);
+                                        }
+                                        rafId = null;
+                                    });
                                 }
                             }
                         }
                     }
+                }
+
+                // 确保最后一次渲染完成
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
                 }
 
                 // 流式完成，显示最终答案和耗时统计
