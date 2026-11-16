@@ -233,13 +233,20 @@ public class RagService {
                         long generationMs = firstTokenTime[0] > 0 ? (totalEndTime - firstTokenTime[0]) : 0;
                         long totalMs = totalEndTime - totalStartTime;
 
-                        // 发送耗时事件
-                        sink.next(buildSSE(new com.ragserver.streaming.TimingEvent(retrievalMs, promptBuildMs, ttftMs, generationMs, totalMs)));
-
                         // 保存查询历史
                         String fullAnswer = answerBuilder.toString();
+
+                        // 调试：输出完整答案
+                        log.info("=== 后端生成完整答案 ===");
+                        log.info("答案长度: {} 字符", fullAnswer.length());
+                        log.info("答案内容:\n{}", fullAnswer);
+                        log.info("========================");
+
                         saveQueryHistory(question, fullAnswer, topK, enableRerank,
                             totalMs, "SUCCESS", context.size(), null);
+
+                        // 发送耗时事件
+                        sink.next(buildSSE(new com.ragserver.streaming.TimingEvent(retrievalMs, promptBuildMs, ttftMs, generationMs, totalMs)));
 
                         log.info("流式查询完成 - 总耗时: {} ms, 检索: {} ms, Prompt: {} ms, TTFT: {} ms, 生成: {} ms",
                             totalMs, retrievalMs, promptBuildMs, ttftMs, generationMs);

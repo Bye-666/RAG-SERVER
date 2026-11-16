@@ -627,8 +627,7 @@
 
 .markdown-content h2 {
     font-size: 1.5em;
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 0.3em;
+    margin-bottom: 0.8em;
 }
 
 .markdown-content h3 {
