@@ -1,7 +1,8 @@
 package com.ragserver.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ragserver.ai.dashscope.ChatRequest;
-import com.ragserver.ai.dashscope.DashScopeChatClient;
 import com.ragserver.config.DashScopeProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -10,35 +11,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
-import java.io.BufferedReader;
-import java.io.StringReader;
 import java.util.List;
-import java.util.Map;
 
 /**
- * 流式输出服务
+ * 流式输出服务（重构版）
  *
- * <p>提供SSE（Server-Sent Events）流式响应功能，用于：</p>
+ * <p>提供SSE（Server-Sent Events）流式响应功能，使用 Jackson 解析 JSON。</p>
+ *
+ * <h3>改进点</h3>
  * <ul>
- *   <li>流式RAG查询：实时返回生成的答案</li>
- *   <li>大模型流式调用：降低首字延迟</li>
- *   <li>用户体验优化：逐步显示内容</li>
+ *   <li>使用 Jackson 解析 JSON，替代手动字符串操作</li>
+ *   <li>更健壮的错误处理</li>
+ *   <li>清晰的代码结构</li>
  * </ul>
- *
- * <h3>使用示例</h3>
- * <pre>{@code
- * @GetMapping(value = "/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
- * public Flux<String> queryStream(@RequestParam String question) {
- *     String prompt = ragService.buildPrompt(question);
- *     return streamingService.streamChat(prompt);
- * }
- * }</pre>
- *
- * <h3>SSE格式</h3>
- * <pre>
- * data: 文本内容
- * data: [DONE]
- * </pre>
  *
  * @author RAG-SERVER开发团队
  * @since 1.0.0
@@ -49,6 +34,7 @@ public class StreamingService {
 
     private final DashScopeProperties properties;
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
 
     /**
      * SSE结束标记
@@ -58,20 +44,21 @@ public class StreamingService {
     /**
      * SSE数据前缀
      */
-    private static final String DATA_PREFIX = "data: ";
+    private static final String DATA_PREFIX = "data:";
 
-    public StreamingService(DashScopeProperties properties) {
+    public StreamingService(DashScopeProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
+        this.objectMapper = objectMapper;
         this.webClient = WebClient.builder()
                 .baseUrl(properties.getBaseUrl())
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
-        log.info("StreamingService初始化完成");
+        log.info("StreamingService 初始化完成");
     }
 
     /**
-     * 流式调用Chat API
+     * 流式调用 Chat API
      *
      * <p>使用SSE（Server-Sent Events）方式流式返回大模型响应。</p>
      *
@@ -80,7 +67,7 @@ public class StreamingService {
      *   <li>设置 stream=true 参数</li>
      *   <li>建立SSE连接</li>
      *   <li>逐步接收生成内容</li>
-     *   <li>解析delta内容并返回</li>
+     *   <li>使用 Jackson 解析 JSON</li>
      * </ol>
      *
      * <h3>错误处理</h3>
@@ -94,7 +81,7 @@ public class StreamingService {
      * @return 流式文本内容
      */
     public Flux<String> streamChat(String prompt) {
-        log.debug("开始流式Chat调用，prompt长度：{}", prompt.length());
+        log.debug("开始流式 Chat 调用，prompt 长度：{}", prompt.length());
 
         // 构建请求
         ChatRequest request = new ChatRequest();
@@ -104,13 +91,13 @@ public class StreamingService {
 
         return webClient.post()
                 .uri("/chat/completions")
-                .bodyValue(request)  // 直接发送ChatRequest对象
+                .bodyValue(request)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
                 .bodyToFlux(String.class)
-                .flatMap(this::parseStreamResponse)
-                .doOnComplete(() -> log.debug("流式Chat调用完成"))
-                .doOnError(e -> log.error("流式Chat调用失败", e))
+                .flatMap(this::parseSSE)
+                .doOnComplete(() -> log.debug("流式 Chat 调用完成"))
+                .doOnError(e -> log.error("流式 Chat 调用失败", e))
                 .onErrorResume(e -> {
                     log.error("流式调用出错，返回错误信息", e);
                     return Flux.just("错误：" + e.getMessage());
@@ -118,7 +105,7 @@ public class StreamingService {
     }
 
     /**
-     * 解析流式响应
+     * 解析 SSE 响应（使用 Jackson）
      *
      * <p>从SSE格式中提取实际文本内容。</p>
      *
@@ -132,149 +119,39 @@ public class StreamingService {
      * @param sseData SSE数据行
      * @return 提取的文本内容
      */
-    private Flux<String> parseStreamResponse(String sseData) {
+    private Flux<String> parseSSE(String sseData) {
         try {
             // 跳过空行
             if (sseData == null || sseData.trim().isEmpty()) {
                 return Flux.empty();
             }
 
-            // 处理data:前缀（不要trim，保留换行符）
-            String data = sseData;
+            // 移除 "data:" 前缀
+            String data = sseData.trim();
             if (data.startsWith(DATA_PREFIX)) {
-                data = data.substring(DATA_PREFIX.length());
+                data = data.substring(DATA_PREFIX.length()).trim();
             }
 
-            // 检查结束标记（trim后再比较）
-            if (DONE_MARKER.equals(data.trim())) {
-                log.debug("接收到流式结束标记");
+            // 检查结束标记
+            if (DONE_MARKER.equals(data)) {
+                log.debug("收到流式结束标记");
                 return Flux.empty();
             }
 
-            // 调试：打印原始数据
-            if (data.contains("\\n")) {
-                log.debug("SSE 原始数据包含换行符: {}", data);
+            // 使用 Jackson 解析 JSON
+            JsonNode root = objectMapper.readTree(data);
+
+            // 提取 content: choices[0].delta.content 或 choices[0].message.content
+            String content = root.at("/choices/0/delta/content").asText("");
+            if (content.isEmpty()) {
+                content = root.at("/choices/0/message/content").asText("");
             }
 
-            // 解析JSON并提取content
-            // 需要正确处理转义字符，找到真正的结束引号
-            int contentIndex = data.indexOf("\"content\"");
-            if (contentIndex == -1) {
-                return Flux.empty();
-            }
-
-            // 找到 content 值的开始引号
-            int startQuote = data.indexOf("\"", contentIndex + 10);
-            if (startQuote == -1) {
-                return Flux.empty();
-            }
-
-            // 找到结束引号（需要跳过转义的引号 \"）
-            int endQuote = startQuote + 1;
-            while (endQuote < data.length()) {
-                if (data.charAt(endQuote) == '"') {
-                    // 检查前面是否有转义符 \
-                    int backslashCount = 0;
-                    int checkPos = endQuote - 1;
-                    while (checkPos >= 0 && data.charAt(checkPos) == '\\') {
-                        backslashCount++;
-                        checkPos--;
-                    }
-                    // 如果反斜杠数量是偶数（包括0），说明引号没有被转义
-                    if (backslashCount % 2 == 0) {
-                        break;
-                    }
-                }
-                endQuote++;
-            }
-
-            if (endQuote >= data.length()) {
-                return Flux.empty();
-            }
-
-            String content = data.substring(startQuote + 1, endQuote);
-
-            // 处理转义字符
-            content = unescapeJson(content);
-
-            if (!content.isEmpty()) {
-                return Flux.just(content);
-            }
-
-            return Flux.empty();
+            return content.isEmpty() ? Flux.empty() : Flux.just(content);
 
         } catch (Exception e) {
-            log.warn("解析流式响应失败：{}", sseData, e);
+            log.warn("SSE 解析失败：{}", sseData, e);
             return Flux.empty();
         }
-    }
-
-    /**
-     * 反转义JSON字符串
-     *
-     * <p>处理常见的JSON转义字符：</p>
-     * <ul>
-     *   <li>\" → "</li>
-     *   <li>\\ → \</li>
-     *   <li>\n → 换行</li>
-     *   <li>\t → 制表符</li>
-     * </ul>
-     *
-     * @param str 转义的字符串
-     * @return 反转义后的字符串
-     */
-    private String unescapeJson(String str) {
-        return str.replace("\\\"", "\"")
-                  .replace("\\\\", "\\")
-                  .replace("\\n", "\n")
-                  .replace("\\t", "\t");
-    }
-
-    /**
-     * 流式RAG查询（简化版）
-     *
-     * <p>提供完整的流式RAG查询功能，包括：</p>
-     * <ol>
-     *   <li>检索相关文档</li>
-     *   <li>构建Prompt</li>
-     *   <li>流式生成答案</li>
-     * </ol>
-     *
-     * <p>注意：此方法为简化实现，完整实现需要整合RagService。</p>
-     *
-     * @param question 用户问题
-     * @param context 上下文文档
-     * @return 流式答案
-     */
-    public Flux<String> streamRagQuery(String question, String context) {
-        log.info("开始流式RAG查询，问题：{}", question);
-
-        // 构建RAG prompt
-        String prompt = buildRagPrompt(question, context);
-
-        // 流式调用
-        return streamChat(prompt);
-    }
-
-    /**
-     * 构建RAG Prompt
-     *
-     * <p>简化版Prompt构建，完整版应使用PromptService。</p>
-     *
-     * @param question 用户问题
-     * @param context 上下文
-     * @return Prompt文本
-     */
-    private String buildRagPrompt(String question, String context) {
-        return String.format("""
-            你是一个智能助手，请根据以下上下文回答问题。
-
-            上下文：
-            %s
-
-            问题：%s
-
-            回答：
-            """, context, question);
     }
 }

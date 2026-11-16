@@ -585,16 +585,25 @@
             alert(message);
         }
 
-        // 流式查询
+        // 流式查询（重构版）
         async function executeStreamQuery(query, topK, enableRerank) {
             try {
-                const streamStartTime = Date.now();
+                // 配置 marked（更宽松的解析）
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,        // 支持换行
+                        gfm: true,           // GitHub Flavored Markdown
+                        headerIds: false,
+                        mangle: false,
+                        pedantic: false      // 不使用严格模式，更宽松
+                    });
+                }
 
                 // 显示加载状态
                 document.getElementById('query-answer').innerHTML = `
-                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8;">
-                        <div style="color: #666; font-size: 14px; margin-bottom: 8px;">⚡ 正在实时生成答案...</div>
-                        <div id="stream-answer" style="min-height: 40px; white-space: pre-wrap;"></div>
+                    <div style="padding: 16px; background: #f8f9fa; border-radius: 4px;">
+                        <div style="color: #666; font-size: 14px; margin-bottom: 12px;">⚡ 实时生成中...</div>
+                        <div id="stream-answer" class="markdown-content" style="min-height: 40px; line-height: 1.8;"></div>
                     </div>
                 `;
 
@@ -611,230 +620,234 @@
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                let accumulatedText = '';
+                let accumulatedAnswer = '';
                 let timingData = null;
-                let rafId = null;  // 用于节流渲染
+                let buffer = '';
 
                 while (true) {
                     const { done, value } = await reader.read();
 
-                    if (done) {
-                        break;
-                    }
+                    if (done) break;
 
-                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += decoder.decode(value, { stream: true });
 
-                    // 解析SSE格式：移除 "data:" 前缀
-                    const lines = chunk.split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data:')) {
-                            const content = line.substring(5);
+                    // 解析 SSE 事件
+                    const events = parseSSE(buffer);
+                    buffer = events.remaining;
 
-                            // 检查是否包含耗时数据标记
-                            if (content.includes('__TIMING_DATA__')) {
-                                try {
-                                    const jsonStr = content.replace('__TIMING_DATA__', '').trim();
-                                    timingData = JSON.parse(jsonStr);
-                                    console.log('收到耗时统计:', timingData);
-                                } catch (e) {
-                                    console.error('解析耗时数据失败:', e, content);
-                                }
-                            } else if (content) {
-                                // 普通文本内容，直接追加
-                                accumulatedText += content;
-
-                                // 使用 requestAnimationFrame 节流渲染（最多60fps）
-                                if (document.getElementById('stream-answer')) {
-                                    if (rafId) {
-                                        cancelAnimationFrame(rafId);
-                                    }
-                                    rafId = requestAnimationFrame(() => {
-                                        const answerElement = document.getElementById('stream-answer');
-                                        if (answerElement) {
-                                            answerElement.innerHTML = formatAnswer(accumulatedText);
-                                        }
-                                        rafId = null;
-                                    });
-                                }
-                            }
+                    for (const event of events.parsed) {
+                        if (event.type === 'content') {
+                            // 内容事件：逐字追加
+                            accumulatedAnswer += event.data.content;
+                            renderMarkdown(accumulatedAnswer);
+                        } else if (event.type === 'timing') {
+                            // 耗时事件：保存数据
+                            timingData = event.data;
                         }
                     }
                 }
 
-                // 确保最后一次渲染完成
-                if (rafId) {
-                    cancelAnimationFrame(rafId);
-                }
+                // 流式完成
+                document.querySelector('#query-answer > div > div:first-child').textContent = '✓ 生成完成';
 
-                // 流式完成，添加耗时统计到答案上方
+                // 显示耗时统计
                 if (timingData) {
-                    const answerContainer = document.getElementById('query-answer');
-                    const streamAnswerDiv = document.getElementById('stream-answer');
-
-                    // 构建完整的显示内容：耗时统计 + 答案
-                    answerContainer.innerHTML =
-                        generateTimingStatsHtml(timingData) +
-                        `<div style="padding: 16px; background: #f8f9fa; border-radius: 4px; line-height: 1.8; margin-top: 12px;">
-                            <div style="white-space: pre-wrap;">${escapeHtml(accumulatedText)}</div>
-                        </div>`;
-                } else {
-                    console.warn('未收到耗时统计数据');
+                    const timingHtml = generateTimingStatsHtml(timingData);
+                    document.getElementById('query-answer').insertAdjacentHTML('beforeend', timingHtml);
                 }
 
             } catch (error) {
+                console.error('流式查询失败:', error);
                 document.getElementById('query-answer').innerHTML = `
                     <div style="padding: 16px; background: #f8d7da; border-radius: 4px; color: #721c24;">
-                        查询失败: ${error.message}
+                        查询失败: ${escapeHtml(error.message)}
                     </div>
                 `;
             }
         }
 
-        // 生成耗时统计HTML（可视化进度条）
-        function generateTimingStatsHtml(timingData) {
-            const totalTime = timingData.total;
+        /**
+         * 解析 SSE 事件流
+         */
+        function parseSSE(buffer) {
+            const parsed = [];
+            const lines = buffer.split('\n');
+            let remaining = '';
 
-            // 计算各阶段占比
-            const percentages = {};
-            let accountedTime = 0;
-            for (let key in timingData) {
-                if (key !== 'total') {
-                    percentages[key] = totalTime > 0 ? ((timingData[key] / totalTime) * 100).toFixed(1) : 0;
-                    accountedTime += timingData[key];
-                }
-            }
+            let currentEvent = { type: 'message', data: '' };
 
-            // 计算未统计的时间（其他开销）
-            const otherTime = totalTime - accountedTime;
-            const otherPercentage = totalTime > 0 ? ((otherTime / totalTime) * 100).toFixed(1) : 0;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
 
-            // 阶段配置（定义显示顺序、标签、颜色）
-            const stageConfigs = {
-                denseSearch: { label: 'Dense检索', color: 'loading', order: 1 },
-                sparseSearch: { label: 'Sparse检索', color: 'splitting', order: 2 },
-                rrfFusion: { label: 'RRF融合', color: 'refining', order: 3 },
-                reranker: { label: 'Rerank', color: 'enriching', order: 4 },
-                retrieval: { label: '检索总耗时', color: 'loading', order: 5 },
-                promptBuild: { label: 'Prompt构建', color: 'splitting', order: 6 },
-                ttft: { label: 'LLM首字延迟', color: 'enriching', order: 7 },
-                streamGeneration: { label: '流式生成', color: 'embedding', order: 8 },
-                generation: { label: '生成', color: 'embedding', order: 9 }
-            };
-
-            // 按顺序构建进度条HTML（只显示有耗时的阶段，跳过retrieval避免重复）
-            let progressBarHtml = '';
-            const sortedKeys = Object.keys(timingData)
-                .filter(key => key !== 'total' && key !== 'retrieval' && timingData[key] > 0)
-                .sort((a, b) => (stageConfigs[a]?.order || 99) - (stageConfigs[b]?.order || 99));
-
-            for (let key of sortedKeys) {
-                const config = stageConfigs[key] || { label: key, color: 'storage' };
-                const percentage = percentages[key];
-                progressBarHtml += `<div class="timing-bar timing-bar-${config.color}" style="width: ${percentage}%;" title="${config.label}: ${timingData[key]}ms">${percentage >= 5 ? percentage + '%' : ''}</div>`;
-            }
-
-            // 添加"其他"项（如果有未统计的时间且大于1ms，避免舍入误差）
-            if (otherTime > 1) {
-                progressBarHtml += `<div class="timing-bar timing-bar-storage" style="width: ${otherPercentage}%;" title="其他: ${otherTime}ms">${otherPercentage >= 5 ? otherPercentage + '%' : ''}</div>`;
-            }
-
-            // 构建详细列表HTML（分组显示：检索阶段 + 生成阶段）
-            let detailsHtml = '';
-
-            // 检索阶段（如果有子阶段，显示折叠的层级结构）
-            const hasRetrievalDetails = timingData.denseSearch || timingData.sparseSearch ||
-                                       timingData.rrfFusion || timingData.reranker;
-
-            if (hasRetrievalDetails) {
-                // 有详细检索数据，显示总览和子项
-                const retrievalTotal = timingData.retrieval ||
-                    (timingData.denseSearch + timingData.sparseSearch + timingData.rrfFusion + timingData.reranker);
-                const retrievalPercentage = totalTime > 0 ? ((retrievalTotal / totalTime) * 100).toFixed(1) : 0;
-
-                detailsHtml += `
-                    <div class="timing-item" style="font-weight: 600; grid-column: 1 / -1;">
-                        <span class="timing-dot timing-dot-loading"></span>
-                        检索: ${retrievalTotal}ms (${retrievalPercentage}%)
-                    </div>`;
-
-                // 子项（缩进显示）
-                ['denseSearch', 'sparseSearch', 'rrfFusion', 'reranker'].forEach(key => {
-                    if (timingData[key] !== undefined) {
-                        const config = stageConfigs[key];
-                        detailsHtml += `
-                            <div class="timing-item" style="padding-left: 20px; color: #666;">
-                                <span style="color: #3498db;">▸</span>
-                                ${config.label}: ${timingData[key]}ms (${percentages[key]}%)
-                            </div>`;
+                if (line.startsWith('event:')) {
+                    currentEvent.type = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                    currentEvent.data += line.substring(5).trim();
+                } else if (line === '') {
+                    // 空行表示事件结束
+                    if (currentEvent.data) {
+                        try {
+                            currentEvent.data = JSON.parse(currentEvent.data);
+                            parsed.push(currentEvent);
+                        } catch (e) {
+                            console.warn('JSON 解析失败:', currentEvent.data);
+                        }
+                        currentEvent = { type: 'message', data: '' };
                     }
-                });
-            } else if (timingData.retrieval) {
-                // 只有检索总耗时，没有详细数据
-                detailsHtml += `
-                    <div class="timing-item">
-                        <span class="timing-dot timing-dot-loading"></span>
-                        ${stageConfigs.retrieval.label}: ${timingData.retrieval}ms (${percentages.retrieval}%)
-                    </div>`;
-            }
-
-            // Prompt构建
-            if (timingData.promptBuild !== undefined) {
-                detailsHtml += `
-                    <div class="timing-item">
-                        <span class="timing-dot timing-dot-splitting"></span>
-                        ${stageConfigs.promptBuild.label}: ${timingData.promptBuild}ms (${percentages.promptBuild}%)
-                    </div>`;
-            }
-
-            // LLM生成阶段（如果有TTFT和streamGeneration，显示分解；否则显示generation）
-            if (timingData.ttft !== undefined || timingData.streamGeneration !== undefined) {
-                // 显示首字延迟
-                if (timingData.ttft !== undefined) {
-                    detailsHtml += `
-                        <div class="timing-item">
-                            <span class="timing-dot timing-dot-enriching"></span>
-                            ${stageConfigs.ttft.label}: ${timingData.ttft}ms (${percentages.ttft}%)
-                        </div>`;
+                } else if (i === lines.length - 1) {
+                    // 最后一行可能不完整，保留到 buffer
+                    remaining = lines.slice(i).join('\n');
+                    break;
                 }
-                // 显示流式生成
-                if (timingData.streamGeneration !== undefined) {
-                    detailsHtml += `
-                        <div class="timing-item">
-                            <span class="timing-dot timing-dot-embedding"></span>
-                            ${stageConfigs.streamGeneration.label}: ${timingData.streamGeneration}ms (${percentages.streamGeneration}%)
-                        </div>`;
-                }
-            } else if (timingData.generation !== undefined) {
-                // 只有总生成耗时
-                detailsHtml += `
-                    <div class="timing-item">
-                        <span class="timing-dot timing-dot-embedding"></span>
-                        ${stageConfigs.generation.label}: ${timingData.generation}ms (${percentages.generation}%)
-                    </div>`;
             }
 
-            // 添加"其他"项到详细列表（如果有未统计的时间且大于1ms）
-            if (otherTime > 1) {
-                detailsHtml += `
-                    <div class="timing-item">
-                        <span class="timing-dot timing-dot-storage"></span>
-                        其他: ${otherTime}ms (${otherPercentage}%)
-                    </div>
-                `;
+            return { parsed, remaining };
+        }
+
+        /**
+         * 预处理 Markdown 文本，修复常见格式问题
+         */
+        function preprocessMarkdown(markdown) {
+            if (!markdown) return '';
+
+            let processed = markdown;
+
+            // 1. 修复标题格式：####1 → #### 1（井号后添加空格）
+            processed = processed.replace(/^(#{1,6})(\d)/gm, '$1 $2');
+
+            // 2. 修复标题格式：####文字 → #### 文字
+            processed = processed.replace(/^(#{1,6})([^\s#])/gm, '$1 $2');
+
+            // 3. 修复未闭合的粗体标记
+            // 统计每行的 ** 数量，如果是奇数则在行末补充
+            const lines = processed.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                // 统计 ** 的数量（注意要排除转义的情况）
+                const matches = line.match(/(?<!\\)\*\*/g);
+                if (matches && matches.length % 2 === 1) {
+                    // 奇数个 **，在行末补充一个
+                    lines[i] = line + '**';
+                }
             }
+            processed = lines.join('\n');
+
+            // 4. 修复未闭合的代码标记 `
+            const codeLines = processed.split('\n');
+            for (let i = 0; i < codeLines.length; i++) {
+                const line = codeLines[i];
+                // 统计单个反引号的数量
+                const matches = line.match(/(?<!`)(`{1})(?!`)/g);
+                if (matches && matches.length % 2 === 1) {
+                    // 奇数个 `，在行末补充一个
+                    codeLines[i] = line + '`';
+                }
+            }
+            processed = codeLines.join('\n');
+
+            return processed;
+        }
+
+        /**
+         * 渲染 Markdown（增量渲染，逐字显示）
+         */
+        function renderMarkdown(markdown) {
+            const answerDiv = document.getElementById('stream-answer');
+            if (!answerDiv) return;
+
+            // 使用 requestAnimationFrame 节流渲染
+            if (renderMarkdown.rafId) {
+                cancelAnimationFrame(renderMarkdown.rafId);
+            }
+
+            renderMarkdown.rafId = requestAnimationFrame(() => {
+                // 检查 marked 是否加载
+                if (typeof marked === 'undefined') {
+                    console.error('marked 库未加载，使用降级显示');
+                    answerDiv.textContent = markdown;
+                    renderMarkdown.rafId = null;
+                    return;
+                }
+
+                // 预处理 Markdown
+                const processedMarkdown = preprocessMarkdown(markdown);
+
+                // 渲染 Markdown
+                const rawHtml = marked.parse(processedMarkdown);
+
+                // 使用 DOMPurify 防止 XSS（如果可用）
+                let cleanHtml;
+                if (typeof DOMPurify !== 'undefined') {
+                    cleanHtml = DOMPurify.sanitize(rawHtml, {
+                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre',
+                                      'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4',
+                                      'blockquote', 'table', 'thead', 'tbody',
+                                      'tr', 'th', 'td', 'hr'],
+                        ALLOWED_ATTR: ['class']
+                    });
+                } else {
+                    console.warn('DOMPurify 未加载，跳过 XSS 清理');
+                    cleanHtml = rawHtml;
+                }
+
+                answerDiv.innerHTML = cleanHtml;
+                renderMarkdown.rafId = null;
+            });
+        }
+
+        /**
+         * 生成耗时统计 HTML（简化版）
+         */
+        function generateTimingStatsHtml(timing) {
+            const totalMs = timing.totalMs || 0;
+            const retrievalMs = timing.retrievalMs || 0;
+            const promptBuildMs = timing.promptBuildMs || 0;
+            const ttftMs = timing.ttftMs || 0;
+            const generationMs = timing.generationMs || 0;
+
+            // 计算百分比
+            const retrievalPct = totalMs > 0 ? ((retrievalMs / totalMs) * 100).toFixed(1) : 0;
+            const ttftPct = totalMs > 0 ? ((ttftMs / totalMs) * 100).toFixed(1) : 0;
+            const generationPct = totalMs > 0 ? ((generationMs / totalMs) * 100).toFixed(1) : 0;
 
             return `
-                <div class="timing-stats">
-                    <div class="timing-header">⏱️ 耗时统计：总耗时 ${totalTime}ms (${(totalTime/1000).toFixed(2)}秒)</div>
-                    <div class="timing-bar-container">
-                        ${progressBarHtml}
+                <div class="timing-stats" style="margin-top: 16px; padding: 16px; background: white; border-radius: 8px; border: 1px solid #e0e0e0;">
+                    <div style="font-weight: 600; margin-bottom: 12px; color: #333;">
+                        ⏱️ 耗时统计：总耗时 ${totalMs} ms (${(totalMs / 1000).toFixed(2)} 秒)
                     </div>
-                    <div class="timing-details">
-                        ${detailsHtml}
+
+                    <!-- 进度条 -->
+                    <div style="display: flex; height: 24px; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+                        <div style="width: ${retrievalPct}%; background: #3498db; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;" title="检索: ${retrievalMs}ms">
+                            ${retrievalPct >= 10 ? retrievalPct + '%' : ''}
+                        </div>
+                        <div style="width: ${ttftPct}%; background: #f39c12; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;" title="首字延迟: ${ttftMs}ms">
+                            ${ttftPct >= 10 ? ttftPct + '%' : ''}
+                        </div>
+                        <div style="width: ${generationPct}%; background: #27ae60; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;" title="生成: ${generationMs}ms">
+                            ${generationPct >= 10 ? generationPct + '%' : ''}
+                        </div>
+                    </div>
+
+                    <!-- 详细数据 -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; font-size: 13px; color: #666;">
+                        <div>
+                            <span style="color: #3498db;">●</span> 检索: ${retrievalMs} ms (${retrievalPct}%)
+                        </div>
+                        <div>
+                            <span style="color: #95a5a6;">●</span> Prompt: ${promptBuildMs} ms
+                        </div>
+                        <div>
+                            <span style="color: #f39c12;">●</span> 首字延迟: ${ttftMs} ms (${ttftPct}%)
+                        </div>
+                        <div>
+                            <span style="color: #27ae60;">●</span> 流式生成: ${generationMs} ms (${generationPct}%)
+                        </div>
                     </div>
                 </div>
             `;
         }
+
 
         // 格式化答案（纯文本显示，保留换行和基本格式）
         function formatAnswer(text) {

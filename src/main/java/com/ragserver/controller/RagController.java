@@ -410,8 +410,8 @@ public class RagController {
      */
     @GetMapping(value = "/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(
-        summary = "RAG 流式查询",
-        description = "基于知识库回答问题，答案以 SSE (Server-Sent Events) 流式返回，支持实时显示。适用于需要逐字展示的聊天场景"
+        summary = "RAG 流式查询（重构版）",
+        description = "基于知识库回答问题，答案以 SSE (Server-Sent Events) 流式返回。支持两种事件类型：content（逐字文本）和 timing（耗时统计）"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "查询成功，返回流式内容"),
@@ -425,25 +425,24 @@ public class RagController {
             @Parameter(description = "是否启用重排序", example = "false")
             @RequestParam(defaultValue = "false") boolean enableRerank) {
 
-        log.info("流式RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
+        log.info("流式 RAG 查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
         // 输入校验
         if (question == null || question.trim().isEmpty()) {
             return Flux.just(ServerSentEvent.<String>builder()
-                    .data("错误：查询问题不能为空")
+                    .event("error")
+                    .data("{\"error\":\"查询问题不能为空\"}")
                     .build());
         }
 
         if (topK < 1 || topK > 20) {
             return Flux.just(ServerSentEvent.<String>builder()
-                    .data("错误：topK必须在1-20之间")
+                    .event("error")
+                    .data("{\"error\":\"topK 必须在 1-20 之间\"}")
                     .build());
         }
 
-        return ragService.queryStream(question, topK, enableRerank)
-                .map(token -> ServerSentEvent.<String>builder()
-                        .data(token)
-                        .build());
+        return ragService.queryStream(question, topK, enableRerank);
     }
 
     /**

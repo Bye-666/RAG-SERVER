@@ -149,32 +149,36 @@ public class RagService {
      * <h3>使用示例</h3>
      * <pre>{@code
      * @GetMapping(value = "/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-     * public Flux<String> queryStream(@RequestParam String question) {
+     * public Flux<ServerSentEvent<String>> queryStream(@RequestParam String question) {
      *     return ragService.queryStream(question);
      * }
      * }</pre>
      *
      * @param question 用户问题
-     * @return 流式答案文本
+     * @return 流式 SSE 事件
      */
-    public Flux<String> queryStream(String question) {
+    public Flux<org.springframework.http.codec.ServerSentEvent<String>> queryStream(String question) {
         return queryStream(question, DEFAULT_TOP_K, DEFAULT_ENABLE_RERANK);
     }
 
     /**
-     * 流式RAG查询（完整参数）
+     * 流式RAG查询（完整参数）- 重构版
      *
-     * <p>支持自定义检索参数的流式查询，并返回详细的耗时统计。</p>
+     * <p>使用新的事件模型进行流式查询，支持：</p>
+     * <ul>
+     *   <li>ContentEvent: 逐字流式文本</li>
+     *   <li>TimingEvent: 耗时统计（流结束时发送）</li>
+     * </ul>
      *
      * @param question 用户问题
      * @param topK 检索文档数量
      * @param enableRerank 是否启用重排序
-     * @return 流式答案文本（包含耗时统计）
+     * @return 流式 SSE 事件
      */
-    public Flux<String> queryStream(String question, int topK, boolean enableRerank) {
-        log.info("开始流式RAG查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
+    public Flux<org.springframework.http.codec.ServerSentEvent<String>> queryStream(String question, int topK, boolean enableRerank) {
+        log.info("开始流式 RAG 查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
 
-        return Flux.defer(() -> {
+        return Flux.create(sink -> {
             try {
                 long totalStartTime = System.currentTimeMillis();
 
@@ -183,85 +187,89 @@ public class RagService {
                 HybridRetriever.RetrievalResult result = retriever.retrieve(question, topK, enableRerank);
                 List<Document> context = result.getDocuments();
                 long retrievalEndTime = System.currentTimeMillis();
-                log.debug("检索完成：获取{}个文档", context.size());
+                log.debug("检索完成：获取 {} 个文档", context.size());
 
                 // 检查是否有检索结果
                 if (context.isEmpty()) {
                     log.warn("未检索到相关文档");
-                    // 保存失败历史
+                    sink.next(buildSSE(new com.ragserver.streaming.ContentEvent("抱歉，在知识库中未找到与您问题相关的信息。")));
+                    sink.next(buildSSE(new com.ragserver.streaming.TimingEvent(
+                        retrievalEndTime - retrievalStartTime, 0, 0, 0,
+                        System.currentTimeMillis() - totalStartTime
+                    )));
                     saveQueryHistory(question, "未找到相关文档", topK, enableRerank,
                         System.currentTimeMillis() - totalStartTime, "SUCCESS", 0, null);
-                    return Flux.just("抱歉，在知识库中未找到与您问题相关的信息。");
+                    sink.complete();
+                    return;
                 }
 
-                // 2. 构建Prompt
+                // 2. 构建 Prompt
                 long promptStartTime = System.currentTimeMillis();
                 String prompt = promptService.buildRagPrompt(question, context);
                 long promptEndTime = System.currentTimeMillis();
-                log.debug("Prompt构建完成，长度：{}", prompt.length());
+                log.debug("Prompt 构建完成，长度：{}", prompt.length());
 
-                // 3. 流式生成答案（记录首字延迟和生成耗时，同时累积答案文本）
-                final long[] firstTokenTime = {0L};  // 首字延迟
-                final long[] streamStartTime = {System.currentTimeMillis()};
-                final StringBuilder answerBuilder = new StringBuilder();  // 累积答案文本
+                // 3. 流式生成答案
+                final long[] firstTokenTime = {0L};
+                final StringBuilder answerBuilder = new StringBuilder();
 
-                Flux<String> answerStream = streamingService.streamChat(prompt)
+                streamingService.streamChat(prompt)
                     .doOnNext(token -> {
                         if (firstTokenTime[0] == 0L) {
                             firstTokenTime[0] = System.currentTimeMillis();
-                            log.debug("收到第一个token，首字延迟：{}ms", firstTokenTime[0] - streamStartTime[0]);
+                            log.debug("收到第一个 token，TTFT：{} ms", firstTokenTime[0] - promptEndTime);
                         }
-                        // 累积答案文本
                         answerBuilder.append(token);
-                    });
+                        // 发送内容事件
+                        sink.next(buildSSE(new com.ragserver.streaming.ContentEvent(token)));
+                    })
+                    .doOnComplete(() -> {
+                        long totalEndTime = System.currentTimeMillis();
 
-                // 4. 在流结束时添加耗时统计并保存历史记录
-                return answerStream.concatWith(Flux.defer(() -> {
-                    long totalEndTime = System.currentTimeMillis();
+                        // 计算耗时
+                        long retrievalMs = retrievalEndTime - retrievalStartTime;
+                        long promptBuildMs = promptEndTime - promptStartTime;
+                        long ttftMs = firstTokenTime[0] > 0 ? (firstTokenTime[0] - promptEndTime) : 0;
+                        long generationMs = firstTokenTime[0] > 0 ? (totalEndTime - firstTokenTime[0]) : 0;
+                        long totalMs = totalEndTime - totalStartTime;
 
-                    // 计算各阶段耗时
-                    long denseSearchMs = result.getDenseSearchDurationMs();
-                    long sparseSearchMs = result.getSparseSearchDurationMs();
-                    long rrfFusionMs = result.getRrfFusionDurationMs();
-                    long rerankerMs = result.getRerankerDurationMs();
-                    long retrievalTotalMs = retrievalEndTime - retrievalStartTime;
-                    long promptBuildMs = promptEndTime - promptStartTime;
-                    long ttftMs = firstTokenTime[0] > 0 ? (firstTokenTime[0] - streamStartTime[0]) : 0;
-                    long streamGenerationMs = firstTokenTime[0] > 0 ? (totalEndTime - firstTokenTime[0]) : 0;
-                    long totalMs = totalEndTime - totalStartTime;
+                        // 发送耗时事件
+                        sink.next(buildSSE(new com.ragserver.streaming.TimingEvent(retrievalMs, promptBuildMs, ttftMs, generationMs, totalMs)));
 
-                    // 保存查询历史（异步，不阻塞响应）
-                    String fullAnswer = answerBuilder.toString();
-                    saveQueryHistory(question, fullAnswer, topK, enableRerank,
-                        totalMs, "SUCCESS", context.size(), null);
+                        // 保存查询历史
+                        String fullAnswer = answerBuilder.toString();
+                        saveQueryHistory(question, fullAnswer, topK, enableRerank,
+                            totalMs, "SUCCESS", context.size(), null);
 
-                    // 使用特殊标记前缀，便于前端识别（不会被渲染为文本）
-                    String timingJson = String.format(
-                        "\n__TIMING_DATA__{\"denseSearch\":%d,\"sparseSearch\":%d,\"rrfFusion\":%d," +
-                        "\"reranker\":%d,\"retrieval\":%d,\"promptBuild\":%d,\"ttft\":%d," +
-                        "\"streamGeneration\":%d,\"total\":%d}",
-                        denseSearchMs, sparseSearchMs, rrfFusionMs, rerankerMs, retrievalTotalMs,
-                        promptBuildMs, ttftMs, streamGenerationMs, totalMs
-                    );
+                        log.info("流式查询完成 - 总耗时: {} ms, 检索: {} ms, Prompt: {} ms, TTFT: {} ms, 生成: {} ms",
+                            totalMs, retrievalMs, promptBuildMs, ttftMs, generationMs);
 
-                    log.info("流式查询完成 - 总耗时: {}ms, 检索: {}ms, Prompt: {}ms, TTFT: {}ms, 生成: {}ms",
-                        totalMs, retrievalTotalMs, promptBuildMs, ttftMs, streamGenerationMs);
-
-                    return Flux.just(timingJson);
-                })).doOnError(error -> {
-                    // 保存失败历史
-                    log.error("流式查询异常，保存失败历史", error);
-                    saveQueryHistory(question, null, topK, enableRerank,
-                        System.currentTimeMillis() - totalStartTime, "FAILED", 0, error.getMessage());
-                });
+                        sink.complete();
+                    })
+                    .doOnError(error -> {
+                        log.error("流式生成失败", error);
+                        saveQueryHistory(question, null, topK, enableRerank,
+                            System.currentTimeMillis() - totalStartTime, "FAILED", 0, error.getMessage());
+                        sink.error(error);
+                    })
+                    .subscribe();
 
             } catch (Exception e) {
-                log.error("流式RAG查询失败：question={}, error={}", question, e.getMessage(), e);
-                // 保存失败历史
+                log.error("流式 RAG 查询失败：question={}, error={}", question, e.getMessage(), e);
                 saveQueryHistory(question, null, topK, enableRerank, 0L, "FAILED", 0, e.getMessage());
-                return Flux.just("错误：" + e.getMessage());
+                sink.error(e);
             }
         });
+    }
+
+    /**
+     * 构建 SSE 事件
+     */
+    private org.springframework.http.codec.ServerSentEvent<String> buildSSE(com.ragserver.streaming.StreamEvent event) {
+        return org.springframework.http.codec.ServerSentEvent.<String>builder()
+            .event(event.eventType())
+            .data(event.toJson())
+            .build();
     }
 
     /**
