@@ -588,6 +588,9 @@
         // 流式查询（重构版）
         async function executeStreamQuery(query, topK, enableRerank) {
             try {
+                // 重置 parseSSE 状态
+                parseSSE.currentEvent = null;
+
                 // 配置 marked（更严格的解析，禁用自动识别）
                 if (typeof marked !== 'undefined') {
                     marked.setOptions({
@@ -625,7 +628,6 @@
                 let accumulatedAnswer = '';
                 let timingData = null;
                 let buffer = '';
-                let chunkCount = 0;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -633,23 +635,14 @@
                     if (done) break;
 
                     buffer += decoder.decode(value, { stream: true });
-                    chunkCount++;
-
-                    console.log(`=== Chunk ${chunkCount} ===`);
-                    console.log('Buffer 长度:', buffer.length);
-                    console.log('Buffer 内容（前200字符）:', buffer.substring(0, 200));
 
                     // 解析 SSE 事件
                     const events = parseSSE(buffer);
                     buffer = events.remaining;
 
-                    console.log('解析出事件数:', events.parsed.length);
-                    console.log('剩余 buffer 长度:', buffer.length);
-
                     for (const event of events.parsed) {
                         if (event.type === 'content') {
                             // 内容事件：逐字追加
-                            console.log('Content 事件:', event.data.content);
                             accumulatedAnswer += event.data.content;
                             renderMarkdown(accumulatedAnswer);
                         } else if (event.type === 'timing') {
@@ -658,13 +651,6 @@
                         }
                     }
                 }
-
-                // 流式完成，输出完整的原始内容到控制台
-                console.log('=== 流式输出完整内容（未格式化） ===');
-                console.log(accumulatedAnswer);
-                console.log('=== 内容长度 ===');
-                console.log(accumulatedAnswer.length + ' 字符');
-                console.log('=================================');
 
                 // 流式完成
                 document.querySelector('#query-answer > div > div:first-child').textContent = '✓ 生成完成';
@@ -686,26 +672,35 @@
         }
 
         /**
-         * 解析 SSE 事件流（修复版）
+         * 解析 SSE 事件流（状态机版本 - 修复版）
          */
         function parseSSE(buffer) {
             const parsed = [];
             const lines = buffer.split('\n');
-            let remaining = '';
 
-            let currentEvent = { type: 'message', data: '' };
+            // 使用持久化状态（跨 chunk 保持）
+            if (!parseSSE.currentEvent) {
+                parseSSE.currentEvent = { type: 'message', data: '' };
+            }
+            let currentEvent = parseSSE.currentEvent;
             let i = 0;
+            let lastCompleteLineIndex = -1;
 
             while (i < lines.length) {
                 const line = lines[i];
 
+                // 最后一行可能不完整（没有换行符结尾），需要保留
+                if (i === lines.length - 1 && !buffer.endsWith('\n')) {
+                    break;
+                }
+
                 if (line.startsWith('event:')) {
                     currentEvent.type = line.substring(6).trim();
-                    i++;
+                    lastCompleteLineIndex = i;
                 } else if (line.startsWith('data:')) {
-                    // data 可能有多行，都要累积
+                    // data 可能跨多行，需要累积
                     currentEvent.data += line.substring(5).trim();
-                    i++;
+                    lastCompleteLineIndex = i;
                 } else if (line === '') {
                     // 空行表示事件结束
                     if (currentEvent.data) {
@@ -715,19 +710,25 @@
                         } catch (e) {
                             console.warn('JSON 解析失败:', currentEvent.data, e);
                         }
-                        currentEvent = { type: 'message', data: '' };
                     }
-                    i++;
+                    // 重置事件
+                    currentEvent = { type: 'message', data: '' };
+                    lastCompleteLineIndex = i;
                 } else {
-                    // 其他行（可能是注释或不完整的数据）
-                    // 如果是最后几行，可能不完整，保留到 buffer
-                    if (i >= lines.length - 3) {
-                        remaining = lines.slice(i).join('\n');
-                        break;
-                    }
-                    // 否则跳过这一行
-                    i++;
+                    // 其他行（注释或无效行），跳过
+                    lastCompleteLineIndex = i;
                 }
+
+                i++;
+            }
+
+            // 保存当前事件状态（供下次调用使用）
+            parseSSE.currentEvent = currentEvent;
+
+            // 计算剩余的 buffer
+            let remaining = '';
+            if (lastCompleteLineIndex < lines.length - 1) {
+                remaining = lines.slice(lastCompleteLineIndex + 1).join('\n');
             }
 
             return { parsed, remaining };

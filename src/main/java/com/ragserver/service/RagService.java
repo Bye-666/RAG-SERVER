@@ -235,13 +235,6 @@ public class RagService {
 
                         // 保存查询历史
                         String fullAnswer = answerBuilder.toString();
-
-                        // 调试：输出完整答案
-                        log.info("=== 后端生成完整答案 ===");
-                        log.info("答案长度: {} 字符", fullAnswer.length());
-                        log.info("答案内容:\n{}", fullAnswer);
-                        log.info("========================");
-
                         saveQueryHistory(question, fullAnswer, topK, enableRerank,
                             totalMs, "SUCCESS", context.size(), null);
 
