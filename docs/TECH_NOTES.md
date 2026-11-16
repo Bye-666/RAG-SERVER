@@ -2,16 +2,248 @@
 
 > 记录开发过程中遇到的技术难点、典型问题和解决方案
 
-**最后更新**: 2026-11-09 11:30  
+**最后更新**: 2026-11-16 14:20  
 **维护人**: 开发团队
 
 ---
 
 ## 目录
 
+- [SSE 流式传输内容丢失问题](#sse-流式传输内容丢失问题)
 - [Spring AI MCP 框架迁移](#spring-ai-mcp-框架迁移)
 - [MCP Server 启动机制](#mcp-server-启动机制)
 - [Spring Boot Configuration Properties 最佳实践](#spring-boot-configuration-properties-最佳实践)
+
+---
+
+## SSE 流式传输内容丢失问题
+
+**日期**: 2026-11-16  
+**类型**: 流式传输 Bug 修复
+
+### 问题描述
+
+流式 RAG 查询时，前端接收到的内容严重丢失且错乱。后端生成 1000+ 字符的完整答案，但前端只接收到 500-800 字符，且很多文本内容被截断。
+
+### 现象对比
+
+```
+后端生成（完整）：1053 字符
+## 华东精密2026年第三季度报告摘要
+华东精密制造股份有限公司披露2026年第三季度报告摘要...
+[完整内容]
+
+前端接收（错乱）：586 字符
+##管理，不计入本制度范围。公司实行标准工时:00至0，在保证核心...
+[大量内容缺失，文字错乱]
+```
+
+### 问题定位过程
+
+#### 1. 排查方向
+
+通过对比数据库存储和前端显示，确认：
+- ✅ 数据库存储完整 → 后端生成正常
+- ❌ 前端显示不完整 → 问题在前端 SSE 解析
+
+#### 2. 添加调试日志
+
+**后端**：输出完整生成内容
+```java
+log.info("=== 后端生成完整答案 ===");
+log.info("答案长度: {} 字符", fullAnswer.length());
+log.info("答案内容:\n{}", fullAnswer);
+```
+
+**前端**：输出每个 chunk 和事件解析结果
+```javascript
+console.log(`=== Chunk ${chunkCount} ===`);
+console.log('Buffer 内容:', buffer.substring(0, 200));
+console.log('解析出事件数:', events.parsed.length);
+console.log('事件类型:', event.type, '数据:', event.data);
+```
+
+#### 3. 关键发现
+
+观察日志发现：
+```javascript
+=== Chunk 3 ===
+Buffer 内容: event:content\ndata:
+解析出事件数: 0
+剩余 buffer 长度: 5
+
+=== Chunk 4 ===
+Buffer 内容: {"content":"考勤与休假管理制度"}\n\n
+解析出事件数: 1
+事件类型: message  // ❌ 应该是 'content'！
+数据: {content: '考勤与休假管理制度'}
+```
+
+**问题原因**：
+- Chunk 3 的 buffer 是 `event:content\ndata:`（保留 5 字符）
+- Chunk 4 来了 `{"content":"考勤与休假管理制度"}\n\n`
+- 合并后的 buffer 是 `data:{"content":"..."}\n\n`
+- **缺少了 `event:content` 行**，`parseSSE` 函数使用默认的 `type: 'message'`
+- 前端代码只处理 `type === 'content'` 的事件，导致内容被丢弃
+
+### 根本原因
+
+**SSE 事件被网络分割成多个 chunk，`parseSSE` 函数没有在多次调用之间保持状态。**
+
+SSE 标准格式：
+```
+event:content
+data:{"content":"文本"}
+
+(空行表示事件结束)
+```
+
+但网络传输时可能分成 3 个 chunk：
+```
+Chunk 1: event:content\ndata:
+Chunk 2: {"content":"文本"}
+Chunk 3: \n\n
+```
+
+旧版 `parseSSE` 函数每次调用都创建新的 `currentEvent`，导致跨 chunk 的事件类型丢失。
+
+### 解决方案
+
+**使用函数属性持久化事件状态**，使其在多次调用之间保持。
+
+#### 修复前（错误）
+
+```javascript
+function parseSSE(buffer) {
+    const parsed = [];
+    const lines = buffer.split('\n');
+    
+    // ❌ 每次调用都创建新的 currentEvent
+    let currentEvent = { type: 'message', data: '' };
+    
+    // ... 解析逻辑
+    
+    return { parsed, remaining };
+}
+```
+
+#### 修复后（正确）
+
+```javascript
+function parseSSE(buffer) {
+    const parsed = [];
+    const lines = buffer.split('\n');
+    
+    // ✅ 使用函数属性持久化状态
+    if (!parseSSE.currentEvent) {
+        parseSSE.currentEvent = { type: 'message', data: '' };
+    }
+    let currentEvent = parseSSE.currentEvent;
+    
+    // ... 解析逻辑
+    
+    // ✅ 保存当前事件状态（供下次调用使用）
+    parseSSE.currentEvent = currentEvent;
+    
+    return { parsed, remaining };
+}
+```
+
+#### 在查询开始时重置状态
+
+```javascript
+async function executeStreamQuery(query, topK, enableRerank) {
+    try {
+        // ✅ 重置 parseSSE 状态
+        parseSSE.currentEvent = null;
+        
+        // ... 流式读取和解析
+    }
+}
+```
+
+### 验证结果
+
+修复后对比：
+```
+后端生成：1053 字符
+前端接收：1053 字符
+✅ 完全一致！
+```
+
+### 关键代码位置
+
+- **前端 SSE 解析**: `src/main/resources/static/js/app.js` - `parseSSE()` 函数
+- **前端流式查询**: `src/main/resources/static/js/app.js` - `executeStreamQuery()` 函数
+- **后端日志输出**: `src/main/java/com/ragserver/service/RagService.java`
+- **相关提交**: `fix: 修复SSE流式传输内容丢失问题`
+
+### 技术要点
+
+#### 1. SSE 协议理解
+
+Server-Sent Events (SSE) 格式：
+```
+event: <event_type>
+data: <json_data>
+
+(空行)
+```
+
+- `event:` 行指定事件类型
+- `data:` 行包含数据（可以有多行）
+- 空行表示事件结束
+- 注释行以 `:` 开头
+
+#### 2. 流式数据解析状态管理
+
+处理流式数据时，必须考虑：
+- **数据分片**：一个完整的逻辑单元可能跨越多个物理 chunk
+- **状态保持**：解析器需要在多次调用之间保持状态
+- **边界处理**：不完整的数据需要保留到下次处理
+
+#### 3. JavaScript 函数属性
+
+JavaScript 函数也是对象，可以添加属性：
+```javascript
+function myFunc() { }
+myFunc.state = { ... };  // ✅ 可以用来保持状态
+
+// 使用场景：
+// - 单例模式
+// - 缓存
+// - 状态机
+```
+
+### 经验总结
+
+1. **流式数据解析必须考虑跨 chunk 情况**
+   - 不要假设一个逻辑单元总是在一个 chunk 内
+   - 必须设计状态机来处理不完整的数据
+
+2. **调试流式传输问题的方法**
+   - 对比源头（后端）和终点（前端）的数据
+   - 逐 chunk 输出 buffer 内容
+   - 记录每个事件的解析结果
+   - 关注事件类型是否正确
+
+3. **SSE 解析的最佳实践**
+   - 使用状态机模式
+   - 正确处理不完整的行（buffer 末尾可能没有 `\n`）
+   - 保留未完成的事件到下次调用
+   - 在新请求开始时重置状态
+
+4. **测试要覆盖边界情况**
+   - 单个 chunk 包含完整事件
+   - 事件跨越多个 chunk
+   - `event:` 和 `data:` 在不同 chunk
+   - `data:` 内容跨越多个 chunk
+
+### 参考资料
+
+- [Server-Sent Events Specification](https://html.spec.whatwg.org/multipage/server-sent-events.html)
+- [MDN: Using Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
+- [EventSource API](https://developer.mozilla.org/en-US/docs/Web/API/EventSource)
 
 ---
 
