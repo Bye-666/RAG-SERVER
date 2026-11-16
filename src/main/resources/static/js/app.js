@@ -588,14 +588,16 @@
         // 流式查询（重构版）
         async function executeStreamQuery(query, topK, enableRerank) {
             try {
-                // 配置 marked（更宽松的解析）
+                // 配置 marked（更严格的解析，禁用自动识别）
                 if (typeof marked !== 'undefined') {
                     marked.setOptions({
                         breaks: true,        // 支持换行
-                        gfm: true,           // GitHub Flavored Markdown
+                        gfm: false,          // 禁用 GitHub Flavored Markdown（避免自动识别）
                         headerIds: false,
                         mangle: false,
-                        pedantic: false      // 不使用严格模式，更宽松
+                        pedantic: false,
+                        smartLists: false,   // 禁用智能列表
+                        smartypants: false   // 禁用智能标点
                     });
                 }
 
@@ -705,45 +707,36 @@
         }
 
         /**
-         * 预处理 Markdown 文本，修复常见格式问题
+         * 预处理 Markdown 文本，修复常见格式问题（简化版 - 安全模式）
          */
         function preprocessMarkdown(markdown) {
             if (!markdown) return '';
 
             let processed = markdown;
 
-            // 1. 修复标题格式：####1 → #### 1（井号后添加空格）
-            processed = processed.replace(/^(#{1,6})(\d)/gm, '$1 $2');
-
-            // 2. 修复标题格式：####文字 → #### 文字
+            // 1. 修复标题格式：##标题 → ## 标题（井号后添加空格）
             processed = processed.replace(/^(#{1,6})([^\s#])/gm, '$1 $2');
 
-            // 3. 修复未闭合的粗体标记
-            // 统计每行的 ** 数量，如果是奇数则在行末补充
-            const lines = processed.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                // 统计 ** 的数量（注意要排除转义的情况）
-                const matches = line.match(/(?<!\\)\*\*/g);
-                if (matches && matches.length % 2 === 1) {
-                    // 奇数个 **，在行末补充一个
-                    lines[i] = line + '**';
-                }
-            }
-            processed = lines.join('\n');
+            // 2. 修复列表格式：-项目 → - 项目（短横线后添加空格）
+            processed = processed.replace(/^(\s*)-([^\s-])/gm, '$1- $2');
 
-            // 4. 修复未闭合的代码标记 `
-            const codeLines = processed.split('\n');
-            for (let i = 0; i < codeLines.length; i++) {
-                const line = codeLines[i];
-                // 统计单个反引号的数量
-                const matches = line.match(/(?<!`)(`{1})(?!`)/g);
-                if (matches && matches.length % 2 === 1) {
-                    // 奇数个 `，在行末补充一个
-                    codeLines[i] = line + '`';
-                }
-            }
-            processed = codeLines.join('\n');
+            // 3. 移除粗体标记（** 和 __）- 使用更安全的方式
+            // 先移除 **
+            processed = processed.replace(/\*\*/g, '');
+            // 再移除 __（连续两个下划线）
+            processed = processed.replace(/__/g, '');
+
+            // 4. 移除单个 * 和单个 _（斜体标记）- 但保留正常文本中的下划线
+            // 这里只移除明显的斜体标记（前后有空格或标点的）
+            // 为了安全，暂时跳过单个下划线的移除
+
+            // 5. 移除代码块标记
+            processed = processed.replace(/```[\s\S]*?```/g, (match) => {
+                return match.replace(/```\w*\n?/g, '').replace(/```/g, '');
+            });
+
+            // 6. 移除行内代码标记
+            processed = processed.replace(/`([^`]+)`/g, '$1');
 
             return processed;
         }
@@ -775,15 +768,12 @@
                 // 渲染 Markdown
                 const rawHtml = marked.parse(processedMarkdown);
 
-                // 使用 DOMPurify 防止 XSS（如果可用）
+                // 使用 DOMPurify 防止 XSS（只允许最基本的标签）
                 let cleanHtml;
                 if (typeof DOMPurify !== 'undefined') {
                     cleanHtml = DOMPurify.sanitize(rawHtml, {
-                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre',
-                                      'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4',
-                                      'blockquote', 'table', 'thead', 'tbody',
-                                      'tr', 'th', 'td', 'hr'],
-                        ALLOWED_ATTR: ['class']
+                        ALLOWED_TAGS: ['p', 'br', 'ul', 'ol', 'li', 'h2', 'h3', 'h4'],
+                        ALLOWED_ATTR: []
                     });
                 } else {
                     console.warn('DOMPurify 未加载，跳过 XSS 清理');
