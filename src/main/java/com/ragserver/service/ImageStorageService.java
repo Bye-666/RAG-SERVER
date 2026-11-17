@@ -126,7 +126,7 @@ public class ImageStorageService {
             ImageIndex index = new ImageIndex();
             index.setImageId(imageId);
             index.setFilePath(filePath.toString());
-            index.setCollection(metadata.getCollection());
+            index.setCollectionName(metadata.getCollection());
             index.setDocHash(metadata.getDocHash());
             index.setPageNum(metadata.getPageNum());
             index.setCreatedAt(Instant.now());
@@ -173,7 +173,7 @@ public class ImageStorageService {
             ImageInfo info = new ImageInfo();
             info.setImageId(index.getImageId());
             info.setFilePath(index.getFilePath());
-            info.setCollection(index.getCollection());
+            info.setCollection(index.getCollectionName());
             info.setDocHash(index.getDocHash());
             info.setPageNum(index.getPageNum());
             info.setCreatedAt(index.getCreatedAt());
@@ -248,7 +248,7 @@ public class ImageStorageService {
 
         try {
             // 1. 查询所有图片
-            List<ImageIndex> images = imageIndexRepository.findByCollection(collection);
+            List<ImageIndex> images = imageIndexRepository.findByCollectionName(collection);
 
             if (images.isEmpty()) {
                 log.debug("Collection无图片：collection={}", collection);
@@ -269,7 +269,7 @@ public class ImageStorageService {
             }
 
             // 3. 删除索引记录
-            imageIndexRepository.deleteByCollection(collection);
+            imageIndexRepository.deleteByCollectionName(collection);
 
             log.info("Collection图片删除完成：collection={}, 删除{}个文件", collection, deletedFiles);
             return deletedFiles;

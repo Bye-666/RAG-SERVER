@@ -263,6 +263,121 @@ public class RagService {
     }
 
     /**
+     * 同步RAG查询（用于测试和非流式场景）
+     *
+     * <p>提供同步的RAG查询接口，返回完整结果和性能统计。</p>
+     *
+     * @param question 用户问题
+     * @param topK 检索文档数量
+     * @param enableRerank 是否启用重排序
+     * @return 查询结果（包含答案和性能统计）
+     */
+    public QueryResult query(String question, int topK, boolean enableRerank) {
+        log.info("开始同步 RAG 查询：question={}, topK={}, enableRerank={}", question, topK, enableRerank);
+
+        long totalStartTime = System.currentTimeMillis();
+        QueryResult result = new QueryResult();
+
+        try {
+            // 1. 检索相关文档
+            long retrievalStartTime = System.currentTimeMillis();
+            HybridRetriever.RetrievalResult retrievalResult = retriever.retrieve(question, topK, enableRerank);
+            List<Document> context = retrievalResult.getDocuments();
+            long retrievalEndTime = System.currentTimeMillis();
+
+            result.setRetrievedDocuments(context);
+            result.setRetrievalDurationMs(retrievalEndTime - retrievalStartTime);
+
+            // 检查是否有检索结果
+            if (context.isEmpty()) {
+                log.warn("未检索到相关文档");
+                result.setAnswer("抱歉，在知识库中未找到与您问题相关的信息。");
+                result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
+
+                saveQueryHistory(question, result.getAnswer(), topK, enableRerank,
+                    result.getTotalDurationMs(), "SUCCESS", 0, null);
+                return result;
+            }
+
+            // 2. 构建 Prompt
+            long promptStartTime = System.currentTimeMillis();
+            String prompt = promptService.buildRagPrompt(question, context);
+            long promptEndTime = System.currentTimeMillis();
+            result.setPromptBuildDurationMs(promptEndTime - promptStartTime);
+
+            // 3. LLM 生成答案
+            long llmStartTime = System.currentTimeMillis();
+            String answer = chatClient.chat(prompt);
+            long llmEndTime = System.currentTimeMillis();
+            result.setLlmGenerationDurationMs(llmEndTime - llmStartTime);
+
+            // 4. 添加引用信息
+            long citationStartTime = System.currentTimeMillis();
+            String answerWithCitation = buildCitation(answer, context);
+            long citationEndTime = System.currentTimeMillis();
+            result.setCitationBuildDurationMs(citationEndTime - citationStartTime);
+
+            result.setAnswer(answerWithCitation);
+            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
+
+            // 保存查询历史
+            saveQueryHistory(question, answer, topK, enableRerank,
+                result.getTotalDurationMs(), "SUCCESS", context.size(), null);
+
+            log.info("同步查询完成 - 总耗时: {} ms", result.getTotalDurationMs());
+            return result;
+
+        } catch (Exception e) {
+            log.error("同步 RAG 查询失败：question={}, error={}", question, e.getMessage(), e);
+            result.setTotalDurationMs(System.currentTimeMillis() - totalStartTime);
+
+            saveQueryHistory(question, null, topK, enableRerank,
+                result.getTotalDurationMs(), "FAILED", 0, e.getMessage());
+
+            throw new RuntimeException("RAG查询失败：" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 构建引用信息
+     *
+     * @param answer 原始答案
+     * @param documents 引用的文档
+     * @return 带引用的答案
+     */
+    private String buildCitation(String answer, List<Document> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return answer;
+        }
+
+        StringBuilder citation = new StringBuilder(answer);
+        citation.append("\n\n引用来源:\n");
+
+        for (int i = 0; i < documents.size(); i++) {
+            Document doc = documents.get(i);
+
+            // 提取文件名（优先使用 source，其次 source_path）
+            String source = doc.getMetadata().getOrDefault("source",
+                           doc.getMetadata().getOrDefault("source_path", "未知来源")).toString();
+
+            // 如果是路径，提取文件名
+            if (source.contains("/") || source.contains("\\")) {
+                source = source.substring(Math.max(source.lastIndexOf("/"), source.lastIndexOf("\\")) + 1);
+            }
+
+            // 格式化输出
+            if (doc.getScore() != null) {
+                citation.append(String.format("[%d] %s (相似度: %.2f)\n",
+                    i + 1, source, doc.getScore()));
+            } else {
+                citation.append(String.format("[%d] %s\n", i + 1, source));
+            }
+        }
+
+        return citation.toString();
+    }
+
+    /**
      * 构建 SSE 事件
      */
     private org.springframework.http.codec.ServerSentEvent<String> buildSSE(com.ragserver.streaming.StreamEvent event) {

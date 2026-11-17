@@ -119,8 +119,8 @@ public class ImageIndex {
      *   <li>rag_knowledge_hub_test（测试环境）</li>
      * </ul>
      */
-    @Column(name = "collection", length = 128)
-    private String collection;
+    @Column(name = "collection_name", length = 128)
+    private String collectionName;
 
     /**
      * 来源文档哈希值

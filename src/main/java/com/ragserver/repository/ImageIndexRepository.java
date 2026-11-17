@@ -100,16 +100,16 @@ public interface ImageIndexRepository extends JpaRepository<ImageIndex, String> 
      * <p>示例：</p>
      * <pre>{@code
      * // 查询生产环境的所有图片
-     * List<ImageIndex> prodImages = repository.findByCollection("rag_knowledge_hub");
+     * List<ImageIndex> prodImages = repository.findByCollectionName("rag_knowledge_hub");
      *
      * // 查询开发环境的所有图片
-     * List<ImageIndex> devImages = repository.findByCollection("rag_knowledge_hub_dev");
+     * List<ImageIndex> devImages = repository.findByCollectionName("rag_knowledge_hub_dev");
      * }</pre>
      *
-     * @param collection Collection名称
+     * @param collectionName Collection名称
      * @return 该Collection的所有图片索引列表
      */
-    List<ImageIndex> findByCollection(String collection);
+    List<ImageIndex> findByCollectionName(String collectionName);
 
     /**
      * 查询指定文档和页码的图片
@@ -171,14 +171,14 @@ public interface ImageIndexRepository extends JpaRepository<ImageIndex, String> 
      *
      * <p>示例：</p>
      * <pre>{@code
-     * long totalImages = repository.countByCollection("rag_knowledge_hub");
+     * long totalImages = repository.countByCollectionName("rag_knowledge_hub");
      * log.info("系统中共有{}张图片", totalImages);
      * }</pre>
      *
-     * @param collection Collection名称
+     * @param collectionName Collection名称
      * @return 该Collection的图片数量
      */
-    long countByCollection(String collection);
+    long countByCollectionName(String collectionName);
 
     /**
      * 删除指定文档的所有图片索引
@@ -216,14 +216,14 @@ public interface ImageIndexRepository extends JpaRepository<ImageIndex, String> 
      * <p>示例：</p>
      * <pre>{@code
      * // 清理测试环境的所有图片
-     * long deleted = repository.deleteByCollection("rag_knowledge_hub_test");
+     * long deleted = repository.deleteByCollectionName("rag_knowledge_hub_test");
      * log.info("已清理测试环境的{}条图片记录", deleted);
      * }</pre>
      *
-     * @param collection Collection名称
+     * @param collectionName Collection名称
      * @return 删除的记录数量
      */
-    long deleteByCollection(String collection);
+    long deleteByCollectionName(String collectionName);
 
     /**
      * 查询最近创建的N条图片记录

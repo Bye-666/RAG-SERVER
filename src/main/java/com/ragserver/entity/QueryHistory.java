@@ -137,24 +137,6 @@ public class QueryHistory {
     private Integer retrievedDocsCount;
 
     /**
-     * 实际返回的结果数量
-     */
-    @Column(name = "result_count")
-    private Integer resultCount;
-
-    /**
-     * 用户ID
-     */
-    @Column(name = "user_id", length = 128)
-    private String userId;
-
-    /**
-     * 会话ID
-     */
-    @Column(name = "session_id", length = 128)
-    private String sessionId;
-
-    /**
      * 查询类型
      *
      * <p>可能的值：</p>

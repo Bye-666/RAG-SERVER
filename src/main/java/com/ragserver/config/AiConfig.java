@@ -3,7 +3,6 @@ package com.ragserver.config;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
@@ -47,35 +46,16 @@ public class AiConfig {
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         // 从配置读取超时时间
-        Duration readTimeout = Duration.ofMillis(dashScopeProperties.getTimeoutMs());
-        Duration connectTimeout = Duration.ofSeconds(10);
+        int readTimeoutMs = dashScopeProperties.getTimeoutMs();
+        int connectTimeoutMs = 10000;
+
+        // 直接创建并配置 factory，避免使用过时的 API
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(connectTimeoutMs);
+        factory.setReadTimeout(readTimeoutMs);
 
         return builder
-            .setConnectTimeout(connectTimeout)
-            .setReadTimeout(readTimeout)
-            .requestFactory(this::clientHttpRequestFactory)
-            .build();
-    }
-
-    /**
-     * 配置HTTP请求工厂
-     *
-     * <p>设置缓冲和连接参数。</p>
-     *
-     * @return ClientHttpRequestFactory实例
-     */
-    private ClientHttpRequestFactory clientHttpRequestFactory() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-
-        // 设置缓冲请求体（允许重试）
-        factory.setBufferRequestBody(true);
-
-        // 连接超时
-        factory.setConnectTimeout(10000);
-
-        // 读取超时（从配置读取）
-        factory.setReadTimeout(dashScopeProperties.getTimeoutMs());
-
-        return factory;
+                .requestFactory(() -> factory)
+                .build();
     }
 }
